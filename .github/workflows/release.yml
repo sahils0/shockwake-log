@@ -1,0 +1,164 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            cc: gcc
+            cxx: g++
+          - arch: arm64
+            cc: aarch64-linux-gnu-gcc
+            cxx: aarch64-linux-gnu-g++
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            sudo dpkg --add-architecture arm64
+            sudo apt-get update
+            sudo apt-get install -y \
+              cmake \
+              build-essential \
+              gcc-aarch64-linux-gnu \
+              g++-aarch64-linux-gnu \
+              libcurl4-openssl-dev:arm64
+          else
+            sudo apt-get update
+            sudo apt-get install -y \
+              cmake \
+              build-essential \
+              libcurl4-openssl-dev
+          fi
+
+      - name: Configure CMake
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER=${{ matrix.cc }} \
+            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
+            -DBUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Run tests
+        if: matrix.arch == 'amd64'
+        run: |
+          cd build
+          ctest --output-on-failure
+
+      - name: Package binary
+        run: |
+          cd build/bin
+          chmod +x shockwake-log
+          tar -czf ../../../shockwake-log-linux-${{ matrix.arch }}.tar.gz \
+            shockwake-log
+          cp shockwake-log ../../../shockwake-log-linux-${{ matrix.arch }}
+          cd ../..
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shockwake-log-linux-${{ matrix.arch }}
+          path: |
+            shockwake-log-linux-${{ matrix.arch }}
+            shockwake-log-linux-${{ matrix.arch }}.tar.gz
+
+  source-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create source tarball
+        run: |
+          git archive --format=tar.gz --prefix=shockwake-log-${GITHUB_REF_NAME}/ \
+            -o shockwake-log-source.tar.gz HEAD
+
+      - name: Upload source
+        uses: actions/upload-artifact@v4
+        with:
+          name: source
+          path: shockwake-log-source.tar.gz
+
+  release:
+    needs: [build, source-package]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List artifacts
+        run: find artifacts -type f
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: SHOCKWAKE-LOG ${{ github.ref_name }}
+          body: |
+            ## SHOCKWAKE-LOG ${{ github.ref_name }}
+
+            High-performance real-time log anomaly detection with contextual debugging.
+
+            ### Installation
+
+            **Binary (Linux amd64):**
+            ```bash
+            tar -xzf shockwake-log-linux-amd64.tar.gz
+            sudo mv shockwake-log /usr/local/bin/
+            ```
+
+            **Binary (Linux arm64):**
+            ```bash
+            tar -xzf shockwake-log-linux-arm64.tar.gz
+            sudo mv shockwake-log /usr/local/bin/
+            ```
+
+            **From source:**
+            ```bash
+            tar -xzf shockwake-log-source.tar.gz
+            cd shockwake-log-*
+            mkdir build && cd build
+            cmake ..
+            make
+            sudo make install
+            ```
+
+            ### Quick Start
+            ```bash
+            shockwake-log --log /var/log/app.log --webhook https://discord.com/api/webhooks/...
+            ```
+
+            ### What's New
+            - Initial release
+            - Real-time inotify-based file monitoring
+            - Sliding context window (configurable)
+            - Async webhook alerts (Discord/Slack)
+            - Incident report generation
+            - Optimized for < 1MB memory, 40K+ lines/sec throughput
+          files: |
+            artifacts/shockwake-log-linux-amd64/shockwake-log-linux-amd64
+            artifacts/shockwake-log-linux-amd64/shockwake-log-linux-amd64.tar.gz
+            artifacts/shockwake-log-linux-arm64/shockwake-log-linux-arm64
+            artifacts/shockwake-log-linux-arm64/shockwake-log-linux-arm64.tar.gz
+            artifacts/source/shockwake-log-source.tar.gz
+          draft: false
+          prerelease: false
