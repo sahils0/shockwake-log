@@ -30,14 +30,29 @@ add_compile_options(-Wall -Wextra -Wpedantic -Wshadow)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_compile_options(-g -O0 -fsanitize=address)
-    add_link_options(-fsanitize=address)
+    link_libraries(sanitizer)
 else()
-    add_compile_options(-O2)
+    # -Os: optimize for size (smaller binary, less cache pressure)
+    add_compile_options(-Os)
+
+    # Strip unused code at link time
+    add_compile_options(-ffunction-sections -fdata-sections)
+    add_link_options(-Wl,--gc-sections)
 endif()
 
 # ──────────────────────────────────────────────
-# Dependencies
+# Link-Time Optimization (dead code elimination across TUs)
 # ──────────────────────────────────────────────
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported OUTPUT error)
+if(ipo_supported)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+endif()
+
+# ──────────────────────────────────────────────
+# Dependencies (prefer static curl to reduce memory)
+# ──────────────────────────────────────────────
+set(CURL_USE_STATIC_LIBS ON)
 find_package(CURL REQUIRED)
 find_package(Threads REQUIRED)
 
