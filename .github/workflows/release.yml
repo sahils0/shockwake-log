@@ -12,15 +12,6 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        include:
-          - arch: amd64
-            cc: gcc
-            cxx: g++
-          - arch: arm64
-            cc: aarch64-linux-gnu-gcc
-            cxx: aarch64-linux-gnu-g++
 
     steps:
       - name: Checkout
@@ -28,36 +19,22 @@ jobs:
 
       - name: Install dependencies
         run: |
-          if [ "${{ matrix.arch }}" = "arm64" ]; then
-            sudo dpkg --add-architecture arm64
-            sudo apt-get update
-            sudo apt-get install -y \
-              cmake \
-              build-essential \
-              gcc-aarch64-linux-gnu \
-              g++-aarch64-linux-gnu \
-              libcurl4-openssl-dev:arm64
-          else
-            sudo apt-get update
-            sudo apt-get install -y \
-              cmake \
-              build-essential \
-              libcurl4-openssl-dev
-          fi
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake \
+            build-essential \
+            libcurl4-openssl-dev
 
       - name: Configure CMake
         run: |
           cmake -B build \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_COMPILER=${{ matrix.cc }} \
-            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
             -DBUILD_TESTS=ON
 
       - name: Build
         run: cmake --build build --config Release
 
       - name: Run tests
-        if: matrix.arch == 'amd64'
         run: |
           cd build
           ctest --output-on-failure
@@ -66,18 +43,18 @@ jobs:
         run: |
           cd build/bin
           chmod +x shockwake-log
-          tar -czf ../../../shockwake-log-linux-${{ matrix.arch }}.tar.gz \
+          tar -czf ../../../shockwake-log-linux-amd64.tar.gz \
             shockwake-log
-          cp shockwake-log ../../../shockwake-log-linux-${{ matrix.arch }}
+          cp shockwake-log ../../../shockwake-log-linux-amd64
           cd ../..
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: shockwake-log-linux-${{ matrix.arch }}
+          name: shockwake-log-linux-amd64
           path: |
-            shockwake-log-linux-${{ matrix.arch }}
-            shockwake-log-linux-${{ matrix.arch }}.tar.gz
+            shockwake-log-linux-amd64
+            shockwake-log-linux-amd64.tar.gz
 
   source-package:
     runs-on: ubuntu-latest
@@ -127,12 +104,6 @@ jobs:
             sudo mv shockwake-log /usr/local/bin/
             ```
 
-            **Binary (Linux arm64):**
-            ```bash
-            tar -xzf shockwake-log-linux-arm64.tar.gz
-            sudo mv shockwake-log /usr/local/bin/
-            ```
-
             **From source:**
             ```bash
             tar -xzf shockwake-log-source.tar.gz
@@ -158,8 +129,6 @@ jobs:
           files: |
             artifacts/shockwake-log-linux-amd64/shockwake-log-linux-amd64
             artifacts/shockwake-log-linux-amd64/shockwake-log-linux-amd64.tar.gz
-            artifacts/shockwake-log-linux-arm64/shockwake-log-linux-arm64
-            artifacts/shockwake-log-linux-arm64/shockwake-log-linux-arm64.tar.gz
             artifacts/source/shockwake-log-source.tar.gz
           draft: false
           prerelease: false
