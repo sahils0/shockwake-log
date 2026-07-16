@@ -54,6 +54,8 @@ static bool load_config_file(Config& config, const std::string& path) {
             config.trailing_lines = std::stoul(value);
         } else if (key == "incidents") {
             config.incident_dir = value;
+        } else if (key == "user") {
+            config.drop_user = value;
         } else {
             std::cerr << "Warning: Unknown config key: " << key << "\n";
         }
@@ -68,17 +70,20 @@ void print_usage(const char* program) {
               << "  --webhook <url>       Webhook URL for alerts\n\n"
               << "Optional:\n"
               << "  --config <file>       Path to config file (key=value format)\n"
-              << "  --triggers <k1,k2>    Comma-separated keywords (default: FATAL,ERROR)\n"
+              << "  --triggers <k1,k2>    Comma-separated keywords or regex (default: FATAL,ERROR)\n"
               << "  --window <n>          Lines to keep in buffer (default: 50)\n"
               << "  --trailing <n>        Lines to capture after trigger (default: 10)\n"
-              << "  --incidents <dir>     Directory for incident reports (default: ./incidents)\n\n"
+              << "  --incidents <dir>     Directory for incident reports (default: ./incidents)\n"
+              << "  --user <user>         Drop to this user after opening log file\n"
+              << "  --status              Print current config and exit\n\n"
               << "Config file example:\n"
               << "  log = /var/log/syslog\n"
               << "  webhook = https://hooks.slack.com/services/xxx\n"
               << "  triggers = error,fail,fatal,panic,oom\n"
               << "  window = 100\n"
               << "  trailing = 20\n"
-              << "  incidents = /var/log/shockwake-incidents\n";
+              << "  incidents = /var/log/shockwake-incidents\n"
+              << "  user = syslog\n";
 }
 
 Config parse_args(int argc, char* argv[]) {
@@ -98,7 +103,9 @@ Config parse_args(int argc, char* argv[]) {
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--config") == 0) { i++; continue; }
-        if (strcmp(argv[i], "--log") == 0 && i + 1 < argc) {
+        if (strcmp(argv[i], "--status") == 0) {
+            config.status_mode = true;
+        } else if (strcmp(argv[i], "--log") == 0 && i + 1 < argc) {
             config.log_path = argv[++i];
         } else if (strcmp(argv[i], "--webhook") == 0 && i + 1 < argc) {
             config.webhook_url = argv[++i];
@@ -108,6 +115,8 @@ Config parse_args(int argc, char* argv[]) {
             config.trailing_lines = std::stoul(argv[++i]);
         } else if (strcmp(argv[i], "--incidents") == 0 && i + 1 < argc) {
             config.incident_dir = argv[++i];
+        } else if (strcmp(argv[i], "--user") == 0 && i + 1 < argc) {
+            config.drop_user = argv[++i];
         } else if (strcmp(argv[i], "--triggers") == 0 && i + 1 < argc) {
             parse_triggers(config, argv[++i]);
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
