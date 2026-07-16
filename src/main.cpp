@@ -11,6 +11,8 @@
 #include <chrono>
 #include <ctime>
 #include <algorithm>
+#include <stdexcept>
+#include <sys/stat.h>
 
 namespace fs = std::filesystem;
 
@@ -112,6 +114,12 @@ int main(int argc, char* argv[]) {
     RingBuffer buffer(config.window_size);
     LogScanner scanner;
     scanner.set_triggers(config.triggers);
+
+    struct stat st;
+    if (stat(config.log_path.c_str(), &st) != 0) {
+        std::cerr << "Error: Log file does not exist: " << config.log_path << "\n";
+        return 1;
+    }
 
     InotifyWatcher watcher(config.log_path);
 

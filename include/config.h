@@ -3,10 +3,7 @@
 #include <string>
 #include <vector>
 
-// Config holds CLI arguments and runtime settings
-// Parsed from command line: log path, webhook URL, window size, trigger keywords
-struct Config
-{
+struct Config {
     std::string log_path;
     std::string webhook_url;
     std::string incident_dir;
