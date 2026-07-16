@@ -3,20 +3,18 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <regex>
 
-// LogScanner: Fast pattern matching on log lines
-// Uses std::string_view to avoid copying strings during search
-// Checks each line against configured trigger keywords
-class LogScanner
-{
+class LogScanner {
 public:
-    void set_triggers(const std::vector<std::string> &triggers);
-
+    void set_triggers(const std::vector<std::string>& triggers);
     bool scan(std::string_view line) const;
-
-    const std::string &matched_keyword() const;
+    const std::string& matched_keyword() const;
 
 private:
-    std::vector<std::string> triggers_;
+    static bool is_regex_pattern(const std::string& trigger);
+
+    std::vector<std::string> plain_triggers_;
+    std::vector<std::pair<std::string, std::regex>> regex_triggers_;
     mutable std::string last_match_;
 };
