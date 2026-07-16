@@ -92,6 +92,8 @@ bool WebhookAlert::send_post(const std::string &payload)
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, payload.c_str());
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
 
     CURLcode res = curl_easy_perform(curl);
 
