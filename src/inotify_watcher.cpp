@@ -1,5 +1,6 @@
 #include "inotify_watcher.h"
 #include <sys/inotify.h>
+#include <sys/poll.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <vector>
@@ -17,18 +18,28 @@ InotifyWatcher::InotifyWatcher(const std::string& filepath)
     , read_offset_(0)
     , current_inode_(0)
 {
+    wake_pipe_[0] = -1;
+    wake_pipe_[1] = -1;
+
     std::filesystem::path p(filepath);
     dir_path_ = p.parent_path().string();
     if (dir_path_.empty()) dir_path_ = ".";
     filename_ = p.filename().string();
 
+    if (pipe(wake_pipe_) < 0)
+        throw std::runtime_error("Failed to create wake pipe");
+    fcntl(wake_pipe_[1], F_SETFL, O_NONBLOCK);
+
     inotify_fd_ = inotify_init();
-    if (inotify_fd_ < 0)
+    if (inotify_fd_ < 0) {
+        close(wake_pipe_[0]); close(wake_pipe_[1]);
         throw std::runtime_error("Failed to initialize inotify");
+    }
 
     file_fd_ = open(filepath_.c_str(), O_RDONLY);
     if (file_fd_ < 0) {
         close(inotify_fd_);
+        close(wake_pipe_[0]); close(wake_pipe_[1]);
         throw std::runtime_error("Failed to open file: " + filepath_);
     }
 
@@ -44,6 +55,7 @@ void InotifyWatcher::setup_watches() {
     if (file_watch_fd_ < 0) {
         close(file_fd_);
         close(inotify_fd_);
+        close(wake_pipe_[0]); close(wake_pipe_[1]);
         throw std::runtime_error("Failed to add inotify watch on file");
     }
 
@@ -83,11 +95,12 @@ bool InotifyWatcher::reattach_file_watch() {
     return true;
 }
 
-bool InotifyWatcher::check_inode_changed() {
-    struct stat st;
-    if (stat(filepath_.c_str(), &st) != 0)
-        return false;
-    return st.st_ino != current_inode_;
+static bool poll_fd(int fd, int timeout_ms) {
+    struct pollfd pfd;
+    pfd.fd = fd;
+    pfd.events = POLLIN;
+    pfd.revents = 0;
+    return poll(&pfd, 1, timeout_ms) > 0;
 }
 
 std::string InotifyWatcher::wait_for_changes() {
@@ -95,6 +108,20 @@ std::string InotifyWatcher::wait_for_changes() {
         return "";
 
     while (true) {
+        struct pollfd fds[2];
+        fds[0].fd = inotify_fd_;
+        fds[0].events = POLLIN;
+        fds[0].revents = 0;
+        fds[1].fd = wake_pipe_[0];
+        fds[1].events = POLLIN;
+        fds[1].revents = 0;
+
+        int ret = poll(fds, 2, -1);
+        if (ret < 0)
+            return "";
+        if (fds[1].revents & POLLIN)
+            return "";
+
         char event_buf[4096];
         ssize_t len = read(inotify_fd_, event_buf, sizeof(event_buf));
         if (len <= 0)
@@ -165,6 +192,20 @@ std::string InotifyWatcher::wait_for_changes() {
             return std::string(buffer.data(), bytes_read);
         }
 
+        struct pollfd fds[2];
+        fds[0].fd = inotify_fd_;
+        fds[0].events = POLLIN;
+        fds[0].revents = 0;
+        fds[1].fd = wake_pipe_[0];
+        fds[1].events = POLLIN;
+        fds[1].revents = 0;
+
+        int ret = poll(fds, 2, -1);
+        if (ret < 0)
+            return "";
+        if (fds[1].revents & POLLIN)
+            return "";
+
         char event_buf[4096];
         ssize_t len = read(inotify_fd_, event_buf, sizeof(event_buf));
         if (len <= 0)
@@ -199,6 +240,10 @@ std::string InotifyWatcher::wait_for_changes() {
 
 void InotifyWatcher::stop() {
     running_ = false;
+    if (wake_pipe_[1] >= 0) {
+        char c = 1;
+        write(wake_pipe_[1], &c, 1);
+    }
     if (file_watch_fd_ >= 0) {
         inotify_rm_watch(inotify_fd_, file_watch_fd_);
         file_watch_fd_ = -1;
@@ -214,6 +259,14 @@ void InotifyWatcher::stop() {
     if (inotify_fd_ >= 0) {
         close(inotify_fd_);
         inotify_fd_ = -1;
+    }
+    if (wake_pipe_[0] >= 0) {
+        close(wake_pipe_[0]);
+        wake_pipe_[0] = -1;
+    }
+    if (wake_pipe_[1] >= 0) {
+        close(wake_pipe_[1]);
+        wake_pipe_[1] = -1;
     }
 }
 
