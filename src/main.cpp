@@ -193,6 +193,10 @@ void print_status(const Config &config)
     }
     std::cout << "\n";
     std::cout << "  Webhook:       " << (config.webhook_url.empty() ? "(none - local logging only)" : config.webhook_url) << "\n";
+    if (!config.webhook_url.empty())
+    {
+        std::cout << "  Retries:       " << config.max_retries << " (delay: " << config.retry_delay_ms << "ms)\n";
+    }
     std::cout << "  Window:        " << config.window_size << " lines\n";
     std::cout << "  Trailing:      " << config.trailing_lines << " lines\n";
     std::cout << "  Incidents:     " << config.incident_dir << "\n";
@@ -261,7 +265,7 @@ int main(int argc, char *argv[])
     scanner.set_excludes(config.excludes);
 
     bool has_webhook = !config.webhook_url.empty();
-    WebhookAlert alerter(config.webhook_url);
+    WebhookAlert alerter(config.webhook_url, config.max_retries, config.retry_delay_ms);
     if (has_webhook)
         alerter.start();
 
@@ -282,6 +286,8 @@ int main(int argc, char *argv[])
     std::cout << "[SHOCKWAKE-LOG] Starting...\n";
     std::cout << "  Log file:    " << config.log_path << "\n";
     std::cout << "  Webhook:     " << (has_webhook ? "enabled" : "disabled (local only)") << "\n";
+    if (has_webhook)
+        std::cout << "  Retries:     " << config.max_retries << " (delay: " << config.retry_delay_ms << "ms)\n";
     std::cout << "  Window:      " << config.window_size << " lines\n";
     std::cout << "  Trailing:    " << config.trailing_lines << " lines\n";
     std::cout << "  Triggers:    ";
@@ -364,6 +370,8 @@ int main(int argc, char *argv[])
     std::cout << "[SHOCKWAKE-LOG] Uptime: " << get_uptime(start_time)
               << " | Alerts: " << g_alert_count.load()
               << " | Lines: " << g_lines_processed.load() << "\n";
+    if (has_webhook && alerter.dropped_count() > 0)
+        std::cout << "[SHOCKWAKE-LOG] Dropped alerts: " << alerter.dropped_count() << "\n";
 
     if (has_webhook)
         alerter.stop();

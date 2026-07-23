@@ -71,6 +71,10 @@ static bool load_config_file(Config& config, const std::string& path) {
             config.drop_user = value;
         } else if (key == "excludes") {
             parse_csv(value, config.excludes);
+        } else if (key == "retries") {
+            config.max_retries = std::stoi(value);
+        } else if (key == "retry_delay") {
+            config.retry_delay_ms = std::stoi(value);
         } else {
             std::cerr << "Warning: Unknown config key: " << key << "\n";
         }
@@ -91,6 +95,8 @@ void print_usage(const char* program) {
               << "  --incidents <dir>     Directory for incident reports (default: ./incidents)\n"
               << "  --user <user>         Drop to this user after opening log file\n"
               << "  --exclude <e1,e2>     Comma-separated exclusion patterns (lines matching these are skipped)\n"
+              << "  --retries <n>         Max webhook retry attempts on failure (default: 3, 0 = no retry)\n"
+              << "  --retry-delay <ms>    Delay between retries in milliseconds (default: 1000)\n"
               << "  --status              Print current config and exit\n\n"
               << "Config file example:\n"
               << "  log = /var/log/syslog\n"
@@ -100,6 +106,8 @@ void print_usage(const char* program) {
               << "  trailing = 20\n"
               << "  incidents = /var/log/shockwake-incidents\n"
               << "  excludes = DEBUG,healthcheck,ping\n"
+              << "  retries = 3\n"
+              << "  retry_delay = 1000\n"
               << "  user = syslog\n";
 }
 
@@ -138,6 +146,10 @@ Config parse_args(int argc, char* argv[]) {
             parse_triggers(config, argv[++i]);
         } else if (strcmp(argv[i], "--exclude") == 0 && i + 1 < argc) {
             parse_csv(argv[++i], config.excludes);
+        } else if (strcmp(argv[i], "--retries") == 0 && i + 1 < argc) {
+            config.max_retries = std::stoi(argv[++i]);
+        } else if (strcmp(argv[i], "--retry-delay") == 0 && i + 1 < argc) {
+            config.retry_delay_ms = std::stoi(argv[++i]);
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0]);
             exit(0);

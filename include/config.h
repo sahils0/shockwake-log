@@ -10,6 +10,8 @@ struct Config {
     std::string drop_user;
     size_t window_size = 50;
     size_t trailing_lines = 10;
+    int max_retries = 3;
+    int retry_delay_ms = 1000;
     bool status_mode = false;
     std::vector<std::string> triggers;
     std::vector<std::string> excludes;
