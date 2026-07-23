@@ -24,6 +24,19 @@ static void parse_triggers(Config& config, const std::string& value) {
     if (!last.empty()) config.triggers.push_back(last);
 }
 
+static void parse_csv(const std::string& value, std::vector<std::string>& out) {
+    out.clear();
+    std::string remaining = value;
+    size_t pos;
+    while ((pos = remaining.find(',')) != std::string::npos) {
+        std::string token = trim(remaining.substr(0, pos));
+        if (!token.empty()) out.push_back(token);
+        remaining.erase(0, pos + 1);
+    }
+    std::string last = trim(remaining);
+    if (!last.empty()) out.push_back(last);
+}
+
 static bool load_config_file(Config& config, const std::string& path) {
     std::ifstream file(path);
     if (!file.is_open()) {
@@ -56,6 +69,8 @@ static bool load_config_file(Config& config, const std::string& path) {
             config.incident_dir = value;
         } else if (key == "user") {
             config.drop_user = value;
+        } else if (key == "excludes") {
+            parse_csv(value, config.excludes);
         } else {
             std::cerr << "Warning: Unknown config key: " << key << "\n";
         }
@@ -75,6 +90,7 @@ void print_usage(const char* program) {
               << "  --trailing <n>        Lines to capture after trigger (default: 10)\n"
               << "  --incidents <dir>     Directory for incident reports (default: ./incidents)\n"
               << "  --user <user>         Drop to this user after opening log file\n"
+              << "  --exclude <e1,e2>     Comma-separated exclusion patterns (lines matching these are skipped)\n"
               << "  --status              Print current config and exit\n\n"
               << "Config file example:\n"
               << "  log = /var/log/syslog\n"
@@ -83,6 +99,7 @@ void print_usage(const char* program) {
               << "  window = 100\n"
               << "  trailing = 20\n"
               << "  incidents = /var/log/shockwake-incidents\n"
+              << "  excludes = DEBUG,healthcheck,ping\n"
               << "  user = syslog\n";
 }
 
@@ -119,6 +136,8 @@ Config parse_args(int argc, char* argv[]) {
             config.drop_user = argv[++i];
         } else if (strcmp(argv[i], "--triggers") == 0 && i + 1 < argc) {
             parse_triggers(config, argv[++i]);
+        } else if (strcmp(argv[i], "--exclude") == 0 && i + 1 < argc) {
+            parse_csv(argv[++i], config.excludes);
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0]);
             exit(0);

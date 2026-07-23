@@ -12,6 +12,7 @@ struct Config {
     size_t trailing_lines = 10;
     bool status_mode = false;
     std::vector<std::string> triggers;
+    std::vector<std::string> excludes;
 };
 
 Config parse_args(int argc, char *argv[]);

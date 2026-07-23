@@ -204,6 +204,17 @@ void print_status(const Config &config)
             std::cout << ", ";
     }
     std::cout << "\n";
+    if (!config.excludes.empty())
+    {
+        std::cout << "  Excludes:      ";
+        for (size_t i = 0; i < config.excludes.size(); i++)
+        {
+            std::cout << config.excludes[i];
+            if (i < config.excludes.size() - 1)
+                std::cout << ", ";
+        }
+        std::cout << "\n";
+    }
     if (!config.drop_user.empty())
         std::cout << "  Drop user:     " << config.drop_user << "\n";
     std::cout << "============================\n";
@@ -247,6 +258,7 @@ int main(int argc, char *argv[])
     RingBuffer buffer(config.window_size);
     LogScanner scanner;
     scanner.set_triggers(config.triggers);
+    scanner.set_excludes(config.excludes);
 
     bool has_webhook = !config.webhook_url.empty();
     WebhookAlert alerter(config.webhook_url);
@@ -280,6 +292,17 @@ int main(int argc, char *argv[])
             std::cout << ", ";
     }
     std::cout << "\n";
+    if (!config.excludes.empty())
+    {
+        std::cout << "  Excludes:    ";
+        for (size_t i = 0; i < config.excludes.size(); i++)
+        {
+            std::cout << config.excludes[i];
+            if (i < config.excludes.size() - 1)
+                std::cout << ", ";
+        }
+        std::cout << "\n";
+    }
     std::cout << "[SHOCKWAKE-LOG] Watching for changes...\n\n";
 
     time_t start_time = time(nullptr);

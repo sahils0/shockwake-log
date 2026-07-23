@@ -33,7 +33,35 @@ void LogScanner::set_triggers(const std::vector<std::string>& triggers) {
     }
 }
 
+void LogScanner::set_excludes(const std::vector<std::string>& excludes) {
+    plain_excludes_.clear();
+    regex_excludes_.clear();
+
+    for (const auto& excl : excludes) {
+        if (is_regex_pattern(excl)) {
+            try {
+                regex_excludes_.emplace_back(excl, std::regex(excl, std::regex::icase));
+            } catch (const std::regex_error&) {
+                plain_excludes_.push_back(excl);
+            }
+        } else {
+            plain_excludes_.push_back(excl);
+        }
+    }
+}
+
 bool LogScanner::scan(std::string_view line) const {
+    for (const auto& excl : plain_excludes_) {
+        if (line.find(excl) != std::string_view::npos)
+            return false;
+    }
+
+    std::string line_str(line);
+    for (const auto& [pattern, regex] : regex_excludes_) {
+        if (std::regex_search(line_str, regex))
+            return false;
+    }
+
     for (const auto& trigger : plain_triggers_) {
         if (line.find(trigger) != std::string_view::npos) {
             last_match_ = trigger;
@@ -41,7 +69,6 @@ bool LogScanner::scan(std::string_view line) const {
         }
     }
 
-    std::string line_str(line);
     for (const auto& [pattern, regex] : regex_triggers_) {
         if (std::regex_search(line_str, regex)) {
             last_match_ = pattern;
