@@ -66,9 +66,9 @@ static bool load_config_file(Config& config, const std::string& path) {
 void print_usage(const char* program) {
     std::cerr << "Usage: " << program << " [options]\n\n"
               << "Required (unless --config is used):\n"
-              << "  --log <path>          Path to the log file to monitor\n"
-              << "  --webhook <url>       Webhook URL for alerts\n\n"
+              << "  --log <path>          Path to the log file to monitor\n\n"
               << "Optional:\n"
+              << "  --webhook <url>       Webhook URL for alerts (omit for local-only logging)\n"
               << "  --config <file>       Path to config file (key=value format)\n"
               << "  --triggers <k1,k2>    Comma-separated keywords or regex (default: FATAL,ERROR)\n"
               << "  --window <n>          Lines to keep in buffer (default: 50)\n"
