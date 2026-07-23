@@ -3,16 +3,29 @@
 #include <string>
 #include <vector>
 
+enum class SubCommand {
+    MONITOR,    // default: run monitoring loop
+    INIT,       // generate config file
+    STATUS,     // print config and exit
+    INCIDENTS,  // list incident reports
+    LOGS,       // follow latest incident file
+    CLEAN,      // stop and remove generated files
+    STOP,       // stop a running instance
+};
+
 struct Config {
+    SubCommand subcommand = SubCommand::MONITOR;
     std::string log_path;
     std::string webhook_url;
     std::string incident_dir;
     std::string drop_user;
-    size_t window_size = 50;
-    size_t trailing_lines = 10;
+    std::string config_path;
+    std::string pid_file;
+    size_t window_size = 100;
+    size_t trailing_lines = 20;
     int max_retries = 3;
     int retry_delay_ms = 1000;
-    bool status_mode = false;
+    int cooldown_seconds = 60;
     std::vector<std::string> triggers;
     std::vector<std::string> excludes;
 };
