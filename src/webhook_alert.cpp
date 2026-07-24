@@ -80,11 +80,11 @@ void WebhookAlert::worker_loop()
 
         if (send_post(alert.payload))
         {
-            std::cout << "[WEBHOOK] Alert delivered (attempt " << alert.attempt + 1 << ")\n";
+            std::cout << "[webhook] Alert delivered (attempt " << alert.attempt + 1 << ")\n";
         }
         else if (alert.attempt + 1 < max_retries_)
         {
-            std::cerr << "[WEBHOOK] Delivery failed (attempt " << alert.attempt + 1
+            std::cerr << "[webhook] Delivery failed (attempt " << alert.attempt + 1
                       << "/" << max_retries_ << "), retrying in " << retry_delay_ms_ << "ms...\n";
             std::this_thread::sleep_for(std::chrono::milliseconds(retry_delay_ms_));
             {
@@ -95,7 +95,7 @@ void WebhookAlert::worker_loop()
         }
         else
         {
-            std::cerr << "[WEBHOOK] Alert dropped after " << max_retries_
+            std::cerr << "[webhook] Alert dropped after " << max_retries_
                       << " failed attempts.\n";
             dropped_count_++;
         }

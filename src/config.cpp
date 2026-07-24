@@ -98,19 +98,16 @@ static std::string find_config_file() {
     std::vector<std::string> candidates;
 
     // Current directory
-    candidates.push_back("./.shockwake-log.conf");
-    candidates.push_back("./shockwake-log.conf");
-    candidates.push_back("./.shocklog.conf");
-    candidates.push_back("./shocklog.conf");
+    candidates.push_back("./.swl.conf");
+    candidates.push_back("./swl.conf");
 
     // User config dir
     if (!home.empty()) {
-        candidates.push_back(home + "/.config/shockwake-log/config");
-        candidates.push_back(home + "/.config/shocklog/config");
+        candidates.push_back(home + "/.config/swl/config");
     }
 
     // System config
-    candidates.push_back("/etc/shockwake-log/config");
+    candidates.push_back("/etc/swl/config");
 
     for (const auto& path : candidates) {
         if (fs::exists(path)) return path;
@@ -172,8 +169,7 @@ static std::string discover_log_file() {
 static std::string find_pid_file() {
     // Check common locations
     std::vector<std::string> candidates = {
-        "./.shockwake-log.pid",
-        "./.shocklog.pid",
+        "./.swl.pid",
     };
 
     for (const auto& path : candidates) {
@@ -195,7 +191,7 @@ static SubCommand detect_subcommand(const std::string& arg) {
 void print_usage(const char* program) {
     std::string name = fs::path(program).filename().string();
 
-    std::cerr << "shockwake-log — Real-time log anomaly detection with contextual debugging.\n\n"
+    std::cerr << "swl — Real-time log anomaly detection with contextual debugging.\n\n"
               << "Usage:\n"
               << "  " << name << "                         Auto-discover and monitor logs (sensible defaults)\n"
               << "  " << name << " <logfile>               Monitor a specific log file\n"
@@ -228,7 +224,7 @@ void print_usage(const char* program) {
               << "  " << name << " /var/log/syslog         # Monitor specific file\n"
               << "  " << name << " --webhook URL /var/log/app.log\n\n"
               << "Config File (auto-loaded from):\n"
-              << "  ./.shockwake-log.conf, ~/.config/shockwake-log/config, /etc/shockwake-log/config\n\n"
+              << "  ./.swl.conf, ~/.config/swl/config, /etc/swl/config\n\n"
               << "Config File Example:\n"
               << "  log = /var/log/syslog\n"
               << "  webhook = https://hooks.slack.com/services/xxx\n"
