@@ -22,11 +22,12 @@ std::string get_timestamp()
 {
     auto now = std::chrono::system_clock::now();
     auto time = std::chrono::system_clock::to_time_t(now);
+    auto us = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count() % 1000000;
     struct tm tm_buf;
     localtime_r(&time, &tm_buf);
     char buf[64];
     strftime(buf, sizeof(buf), "%Y%m%d_%H%M%S", &tm_buf);
-    return buf;
+    return std::string(buf) + "." + std::to_string(us);
 }
 
 std::string get_uptime(time_t start)

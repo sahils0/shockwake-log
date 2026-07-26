@@ -190,11 +190,13 @@ std::string InotifyWatcher::wait_for_changes() {
         break;
     }
 
+    std::string accumulated;
+
     while (true) {
         if (file_fd_ < 0) {
             file_fd_ = open(filepath_.c_str(), O_RDONLY);
             if (file_fd_ < 0)
-                return "";
+                return accumulated.empty() ? "" : accumulated;
             read_offset_ = 0;
         }
 
@@ -204,8 +206,16 @@ std::string InotifyWatcher::wait_for_changes() {
 
         if (bytes_read > 0) {
             read_offset_ += bytes_read;
-            return std::string(buffer.data(), bytes_read);
+            accumulated.append(buffer.data(), bytes_read);
+
+            if (accumulated.back() == '\n')
+                return accumulated;
+
+            continue;
         }
+
+        if (!accumulated.empty())
+            return accumulated;
 
         struct pollfd fds[2];
         fds[0].fd = inotify_fd_;

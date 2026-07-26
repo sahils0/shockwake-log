@@ -67,11 +67,14 @@ void test_escape_json_all_special() {
 
 void test_get_timestamp_format() {
     std::string ts = get_timestamp();
-    assert(ts.size() == 15);
+    assert(ts.size() >= 15);
     for (int i = 0; i < 8; i++)
         assert(ts[i] >= '0' && ts[i] <= '9');
     assert(ts[8] == '_');
     for (int i = 9; i < 15; i++)
+        assert(ts[i] >= '0' && ts[i] <= '9');
+    assert(ts[15] == '.');
+    for (size_t i = 16; i < ts.size(); i++)
         assert(ts[i] >= '0' && ts[i] <= '9');
     std::cout << "PASS: test_get_timestamp_format (ts=" << ts << ")\n";
 }
@@ -79,8 +82,8 @@ void test_get_timestamp_format() {
 void test_get_timestamp_unique() {
     std::string ts1 = get_timestamp();
     std::string ts2 = get_timestamp();
-    assert(ts1.size() == 15);
-    assert(ts2.size() == 15);
+    assert(ts1.size() >= 15);
+    assert(ts2.size() >= 15);
     std::cout << "PASS: test_get_timestamp_unique\n";
 }
 
