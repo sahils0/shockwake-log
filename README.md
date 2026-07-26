@@ -1,134 +1,105 @@
-# SHOCKWAKE-LOG
+<h1 align="center">swl</h1>
+<h3 align="center">Real-time log anomaly detection</h3>
+<p align="center">Catches failures in context, not just the error line.</p>
 
-High-performance real-time log anomaly detection with contextual debugging.
-
-## Overview
-
-`shockwake-log` monitors application logs and instantly captures the full context when failures occur. Instead of just finding an error line, it records exactly what happened before and after the incident — with near-zero CPU and memory overhead.
-
-**Key Features:**
-- Kernel-level file monitoring (no polling, no CPU waste)
-- Sliding context window (configurable pre/post trigger lines)
-- Instant webhook alerts (Discord, Slack, custom endpoints)
-- Incident reports with full context snapshots
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│                    SHOCKWAKE-LOG                        │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  ┌──────────────┐    ┌──────────────┐    ┌───────────┐ │
-│  │   inotify    │───▶│  Ring Buffer │───▶│  Scanner  │ │
-│  │   Watcher    │    │   (50 lines) │    │ (string_view)│
-│  └──────────────┘    └──────────────┘    └─────┬─────┘ │
-│                                                 │       │
-│                                          Trigger Found  │
-│                                                 │       │
-│                           ┌─────────────────────┼───────┘
-│                           │                     │
-│                           ▼                     ▼
-│                    ┌──────────┐         ┌─────────────┐
-│                    │ Incident │         │   Webhook   │
-│                    │  Report  │         │   Alert     │
-│                    └──────────┘         └─────────────┘
-│                                                │
-│                                    ┌───────────┴───────┐
-│                                    ▼                   ▼
-│                              Discord/Slack      Custom Endpoint
-└─────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    A["🖥️ Your App"] --writes logs--> B["📄 log file"]
+    B --watches--> C["🔍 swl"]
+    C --sees FATAL / ERROR / WARN--> D["📋 grabs context"]
+    D --saves--> E["📁 incident report"]
+    D --sends--> F["💬 Slack / Discord"]
 ```
 
-## Requirements
+**swl** watches your log files 24/7. When something goes wrong, it doesn't just tell you *what* failed — it saves *everything around it* so you can see **why** it failed.
 
-- C++17 compiler (GCC 7+ / Clang 5+)
-- libcurl development files
-- Linux (uses inotify)
+---
 
-## Building
+## Install
 
 ```bash
-# Clone repository
-git clone https://github.com/yourusername/shockwake-log.git
+git clone https://github.com/sahils0/shockwake-log.git
 cd shockwake-log
-
-# Build with CMake
-mkdir build && cd build
-cmake ..
-make
-
-# Or build directly
-g++ -std=c++17 src/*.cpp -Iinclude -lcurl -lpthread -o shockwake-log
+g++ -std=c++17 -O2 src/*.cpp -Iinclude -lcurl -lpthread -o swl
+sudo mv swl /usr/local/bin/
 ```
+
+**Requirements:** Linux, g++ 7+, libcurl-dev (`sudo apt install libcurl4-openssl-dev`)
+
+## Quick Start
+
+```bash
+# auto-discover and monitor logs
+swl
+
+# monitor a specific file
+swl /var/log/syslog
+
+# generate a config file and edit it
+swl init
+```
+
+No flags needed. It just works.
 
 ## Usage
 
 ```bash
-# Basic usage
-./shockwake-log --log /var/log/app.log --webhook https://discord.com/api/webhooks/...
-
-# With custom options
-./shockwake-log \
-  --log /var/log/app.log \
-  --webhook https://hooks.slack.com/services/... \
-  --triggers FATAL,ERROR,500,503 \
-  --window 100 \
-  --trailing 20 \
-  --incidents /var/log/incidents
+swl                                  # auto-discover logs, sensible defaults
+swl /var/log/app.log                 # monitor specific file
+swl --webhook URL /var/log/app.log   # with webhook alerts
+swl --config /etc/swl/config         # use config file
 ```
+
+## Config
+
+```bash
+swl init    # creates .swl.conf in current directory
+```
+
+```ini
+log = /var/log/app.log
+webhook = https://hooks.slack.com/services/xxx
+triggers = FATAL,ERROR,WARN
+excludes = DEBUG,healthcheck
+window = 100
+trailing = 20
+cooldown = 60
+```
+
+Auto-loaded from (first found wins):
+`./.swl.conf` → `~/.config/swl/config` → `/etc/swl/config`
+
+## Subcommands
+
+| Command | What it does |
+|---------|--------------|
+| `swl` | Monitor logs |
+| `swl init` | Generate config file |
+| `swl status` | Live dashboard (uptime, incidents, config) |
+| `swl incidents` | List recent incident reports |
+| `swl logs` | Follow latest incident file |
+| `swl stop` | Stop running instance |
+| `swl clean` | Stop and remove generated files |
 
 ## Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--log <path>` | Log file to monitor | *required* |
-| `--webhook <url>` | Alert endpoint URL | *required* |
-| `--triggers <k1,k2>` | Comma-separated trigger keywords | `FATAL,ERROR` |
-| `--window <n>` | Lines to keep in context buffer | `50` |
-| `--trailing <n>` | Lines to capture after trigger | `10` |
-| `--incidents <dir>` | Directory for incident reports | `./incidents` |
-
-## Incident Reports
-
-When a trigger is detected, an incident report is generated:
-
-```
-=== SHOCKWAKE-LOG INCIDENT REPORT ===
-Timestamp: 20260715_213415
-Trigger: FATAL
-Log File: /var/log/app.log
-=====================================
-
---- PRE-TRIGGER CONTEXT ---
-2024-01-15 10:23:45 INFO: User logged in
-2024-01-15 10:23:46 DEBUG: Processing request
-...
-
---- TRIGGER LINE ---
->>> FATAL DETECTED <<<
-
---- POST-TRIGGER CONTEXT ---
-2024-01-15 10:23:47 ERROR: Connection lost
-...
-```
-
-## Webhook Format
-
-Alerts are sent as JSON payloads:
-
-```json
-{
-  "content": "🚨 **SHOCKWAKE-LOG ALERT**\nTrigger: FATAL\nLog: /var/log/app.log\nIncident: ./incidents/incident_20260715.log"
-}
-```
-
-## Testing
-
-```bash
-cd build && ctest
-```
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--log <path>` | Log file to monitor | auto-discovered |
+| `--webhook <url>` | Webhook URL for alerts | none (local only) |
+| `--config <file>` | Config file path | auto-loaded |
+| `--triggers <k1,k2>` | Keywords or regex patterns | `FATAL,ERROR` |
+| `--exclude <e1,e2>` | Skip lines matching these | none |
+| `--window <n>` | Context lines before trigger | `100` |
+| `--trailing <n>` | Lines after trigger | `20` |
+| `--cooldown <sec>` | Min seconds between same-alert | `60` |
+| `--retries <n>` | Webhook retry attempts | `3` |
+| `--retry-delay <ms>` | Delay between retries | `1000` |
+| `--no-ssl-verify` | Disable SSL cert verification | disabled |
+| `--max-line-length <n>` | Max chars per log line | `8192` |
+| `--user <user>` | Drop privileges after opening log | none |
+| `--help` | Show help | — |
 
 ## License
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT

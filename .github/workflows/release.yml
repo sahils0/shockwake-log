@@ -42,19 +42,19 @@ jobs:
       - name: Package binary
         run: |
           cd build/bin
-          chmod +x shockwake-log
-          tar -czf ../../../shockwake-log-linux-amd64.tar.gz \
-            shockwake-log
-          cp shockwake-log ../../../shockwake-log-linux-amd64
+          chmod +x swl
+          tar -czf ../../../swl-linux-amd64.tar.gz \
+            swl
+          cp swl ../../../swl-linux-amd64
           cd ../..
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: shockwake-log-linux-amd64
+          name: swl-linux-amd64
           path: |
-            shockwake-log-linux-amd64
-            shockwake-log-linux-amd64.tar.gz
+            swl-linux-amd64
+            swl-linux-amd64.tar.gz
 
   source-package:
     runs-on: ubuntu-latest
@@ -64,14 +64,14 @@ jobs:
 
       - name: Create source tarball
         run: |
-          git archive --format=tar.gz --prefix=shockwake-log-${GITHUB_REF_NAME}/ \
-            -o shockwake-log-source.tar.gz HEAD
+          git archive --format=tar.gz --prefix=swl-${GITHUB_REF_NAME}/ \
+            -o swl-source.tar.gz HEAD
 
       - name: Upload source
         uses: actions/upload-artifact@v4
         with:
           name: source
-          path: shockwake-log-source.tar.gz
+          path: swl-source.tar.gz
 
   release:
     needs: [build, source-package]
@@ -90,24 +90,24 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
-          name: SHOCKWAKE-LOG ${{ github.ref_name }}
+          name: swl ${{ github.ref_name }}
           body: |
-            ## SHOCKWAKE-LOG ${{ github.ref_name }}
+            ## swl ${{ github.ref_name }}
 
-            High-performance real-time log anomaly detection with contextual debugging.
+            Real-time log anomaly detection with contextual debugging.
 
             ### Installation
 
             **Binary (Linux amd64):**
             ```bash
-            tar -xzf shockwake-log-linux-amd64.tar.gz
-            sudo mv shockwake-log /usr/local/bin/
+            tar -xzf swl-linux-amd64.tar.gz
+            sudo mv swl /usr/local/bin/
             ```
 
             **From source:**
             ```bash
-            tar -xzf shockwake-log-source.tar.gz
-            cd shockwake-log-*
+            tar -xzf swl-source.tar.gz
+            cd swl-*
             mkdir build && cd build
             cmake ..
             make
@@ -116,19 +116,20 @@ jobs:
 
             ### Quick Start
             ```bash
-            shockwake-log --log /var/log/app.log --webhook https://discord.com/api/webhooks/...
+            swl --log /var/log/app.log --webhook https://discord.com/api/webhooks/...
             ```
 
             ### What's New
-            - Initial release
             - Real-time inotify-based file monitoring
             - Sliding context window (configurable)
-            - Async webhook alerts (Discord/Slack)
+            - Async webhook alerts (Discord/Slack) with retry
             - Incident report generation
-            - Optimized for < 1MB memory, 40K+ lines/sec throughput
+            - Log rotation detection (mv/copy-truncate)
+            - POSIX regex trigger support
+            - Optimized for < 1MB memory
           files: |
-            artifacts/shockwake-log-linux-amd64/shockwake-log-linux-amd64
-            artifacts/shockwake-log-linux-amd64/shockwake-log-linux-amd64.tar.gz
-            artifacts/source/shockwake-log-source.tar.gz
+            artifacts/swl-linux-amd64/swl-linux-amd64
+            artifacts/swl-linux-amd64/swl-linux-amd64.tar.gz
+            artifacts/source/swl-source.tar.gz
           draft: false
           prerelease: false

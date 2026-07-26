@@ -1,26 +1,30 @@
 #pragma once
 
 #include <string>
-#include <functional>
+#include <sys/types.h>
+#include <atomic>
 
-// InotifyWatcher: Uses Linux inotify to watch log file for changes
-// Sleeps until kernel signals IN_MODIFY, then reads new bytes only
-// Non-blocking, event-driven approach (no polling)
 class InotifyWatcher {
 public:
     explicit InotifyWatcher(const std::string& filepath);
     ~InotifyWatcher();
 
-    // Block until file is modified, return new content
     std::string wait_for_changes();
-
-    // Stop watching (for clean shutdown)
     void stop();
 
 private:
-    int inotify_fd_;
-    int watch_fd_;
-    bool running_;
+    void setup_watches();
+    bool reattach_file_watch();
+
     std::string filepath_;
+    std::string dir_path_;
+    std::string filename_;
+    std::atomic<bool> running_;
+    int inotify_fd_;
+    int file_watch_fd_;
+    int dir_watch_fd_;
     int file_fd_;
+    int wake_pipe_[2];
+    off_t read_offset_;
+    ino_t current_inode_;
 };

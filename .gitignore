@@ -17,12 +17,16 @@ cmake-build-/
 *.dylib
 
 # Executables (project)
+swl
 shockwake-log
+shocklog
 test_rb
 test_ls
 test_iw
 test_wh
 test_*
+
+sandbox/
 
 # CMake generated
 CMakeCache.txt

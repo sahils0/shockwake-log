@@ -1,0 +1,14 @@
+[Unit]
+Description=swl log monitor
+After=rsyslog.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/swl --config /etc/swl/config
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
