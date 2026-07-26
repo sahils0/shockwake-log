@@ -7,6 +7,10 @@
 #include <pwd.h>
 #include <unistd.h>
 
+#ifndef SWL_VERSION
+#define SWL_VERSION "2.0.0"
+#endif
+
 namespace fs = std::filesystem;
 
 static std::string trim(const std::string& s) {
@@ -223,7 +227,8 @@ void print_usage(const char* program) {
               << "  --max-line-length <n> Max characters per log line (default: 8192, 0 = unlimited)\n"
               << "  --user <user>         Drop to this user after opening log (requires root)\n"
               << "  --pid-file <path>     PID file for stop/clean commands\n"
-              << "  --help, -h            Show this help\n\n"
+              << "  --help, -h            Show this help\n"
+              << "  --version, -V         Show version\n\n"
               << "Quick Start:\n"
               << "  " << name << " init                    # Generate config file\n"
               << "  " << name << "                         # Start monitoring with auto-discovery\n"
@@ -266,6 +271,10 @@ Config parse_args(int argc, char* argv[]) {
     std::string first = argv[1];
     if (first == "--help" || first == "-h") {
         print_usage(argv[0]);
+        exit(0);
+    }
+    if (first == "--version" || first == "-V") {
+        std::cout << "swl " << SWL_VERSION << "\n";
         exit(0);
     }
 
@@ -311,6 +320,9 @@ Config parse_args(int argc, char* argv[]) {
                     config.pid_file = argv[++i];
                 } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
                     print_usage(argv[0]);
+                    exit(0);
+                } else if (strcmp(argv[i], "--version") == 0 || strcmp(argv[i], "-V") == 0) {
+                    std::cout << "swl " << SWL_VERSION << "\n";
                     exit(0);
                 }
             }
@@ -387,6 +399,9 @@ Config parse_args(int argc, char* argv[]) {
             config.pid_file = argv[++i];
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0]);
+            exit(0);
+        } else if (strcmp(argv[i], "--version") == 0 || strcmp(argv[i], "-V") == 0) {
+            std::cout << "swl " << SWL_VERSION << "\n";
             exit(0);
         } else if (argv[i][0] != '-') {
             // Treat as logfile (positional arg)

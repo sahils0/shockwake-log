@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 project(swl
-    VERSION 1.0.0
+    VERSION 2.0.0
     DESCRIPTION "Real-time log anomaly detection and contextual debugging"
     LANGUAGES CXX
 )
@@ -82,6 +82,7 @@ target_link_libraries(swl_lib PUBLIC
 add_executable(swl src/main.cpp)
 
 target_link_libraries(swl PRIVATE swl_lib)
+target_compile_definitions(swl PRIVATE SWL_VERSION="${PROJECT_VERSION}")
 
 # ──────────────────────────────────────────────
 # Tests

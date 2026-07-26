@@ -43,18 +43,18 @@ jobs:
         run: |
           cd build/bin
           chmod +x swl
-          tar -czf ../../../swl-linux-${{ matrix.arch }}.tar.gz \
+          tar -czf ../../../swl-linux-amd64.tar.gz \
             swl
-          cp swl ../../../swl-linux-${{ matrix.arch }}
+          cp swl ../../../swl-linux-amd64
           cd ../..
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: swl-linux-${{ matrix.arch }}
+          name: swl-linux-amd64
           path: |
-            swl-linux-${{ matrix.arch }}
-            swl-linux-${{ matrix.arch }}.tar.gz
+            swl-linux-amd64
+            swl-linux-amd64.tar.gz
 
   source-package:
     runs-on: ubuntu-latest
@@ -104,12 +104,6 @@ jobs:
             sudo mv swl /usr/local/bin/
             ```
 
-            **Binary (Linux arm64):**
-            ```bash
-            tar -xzf swl-linux-arm64.tar.gz
-            sudo mv swl /usr/local/bin/
-            ```
-
             **From source:**
             ```bash
             tar -xzf swl-source.tar.gz
@@ -136,8 +130,6 @@ jobs:
           files: |
             artifacts/swl-linux-amd64/swl-linux-amd64
             artifacts/swl-linux-amd64/swl-linux-amd64.tar.gz
-            artifacts/swl-linux-arm64/swl-linux-arm64
-            artifacts/swl-linux-arm64/swl-linux-arm64.tar.gz
             artifacts/source/swl-source.tar.gz
           draft: false
           prerelease: false
