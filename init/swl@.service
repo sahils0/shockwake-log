@@ -1,10 +1,10 @@
 [Unit]
-Description=Shockwake Log Monitor for %I
+Description=swl log monitor for %I
 After=rsyslog.service
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/shockwake-log --config /etc/shockwake-log/%I.conf
+ExecStart=/usr/local/bin/swl --config /etc/swl/%I.conf
 Restart=always
 RestartSec=3
 StandardOutput=journal

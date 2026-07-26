@@ -1,11 +1,36 @@
 #include "log_scanner.h"
 #include <cstring>
+#include <string>
 
 LogScanner::~LogScanner() = default;
 
+// Convert PCRE shorthands (\s, \d, \w) to POSIX equivalents before regcomp
+static std::string pcre_to_posix(const std::string& pattern) {
+    std::string result;
+    result.reserve(pattern.size() * 4);
+    for (size_t i = 0; i < pattern.size(); i++) {
+        if (pattern[i] == '\\' && i + 1 < pattern.size()) {
+            char next = pattern[i + 1];
+            switch (next) {
+                case 's': result += "[[:space:]]"; i++; break;
+                case 'd': result += "[0-9]"; i++; break;
+                case 'w': result += "[A-Za-z0-9_]"; i++; break;
+                case 'S': result += "[^[:space:]]"; i++; break;
+                case 'D': result += "[^0-9]"; i++; break;
+                case 'W': result += "[^A-Za-z0-9_]"; i++; break;
+                default: result += pattern[i]; break;
+            }
+        } else {
+            result += pattern[i];
+        }
+    }
+    return result;
+}
+
 void LogScanner::PosixRegex::compile() {
     free();
-    int rc = regcomp(&compiled, pattern.c_str(), REG_EXTENDED | REG_ICASE | REG_NOSUB);
+    std::string posix_pattern = pcre_to_posix(pattern);
+    int rc = regcomp(&compiled, posix_pattern.c_str(), REG_EXTENDED | REG_ICASE | REG_NOSUB);
     valid = (rc == 0);
 }
 

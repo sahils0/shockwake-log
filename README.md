@@ -95,6 +95,8 @@ Auto-loaded from (first found wins):
 | `--cooldown <sec>` | Min seconds between same-alert | `60` |
 | `--retries <n>` | Webhook retry attempts | `3` |
 | `--retry-delay <ms>` | Delay between retries | `1000` |
+| `--no-ssl-verify` | Disable SSL cert verification | disabled |
+| `--max-line-length <n>` | Max chars per log line | `8192` |
 | `--user <user>` | Drop privileges after opening log | none |
 | `--help` | Show help | — |
 

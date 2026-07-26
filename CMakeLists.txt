@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14)
 
-project(shockwake-log
+project(swl
     VERSION 1.0.0
     DESCRIPTION "Real-time log anomaly detection and contextual debugging"
     LANGUAGES CXX
@@ -59,7 +59,7 @@ find_package(Threads REQUIRED)
 # ──────────────────────────────────────────────
 # Library (reusable component)
 # ──────────────────────────────────────────────
-add_library(shockwake_lib STATIC
+add_library(swl_lib STATIC
     src/config.cpp
     src/ring_buffer.cpp
     src/inotify_watcher.cpp
@@ -67,11 +67,11 @@ add_library(shockwake_lib STATIC
     src/webhook_alert.cpp
 )
 
-target_include_directories(shockwake_lib PUBLIC
+target_include_directories(swl_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
-target_link_libraries(shockwake_lib PUBLIC
+target_link_libraries(swl_lib PUBLIC
     CURL::libcurl
     Threads::Threads
 )
@@ -79,9 +79,9 @@ target_link_libraries(shockwake_lib PUBLIC
 # ──────────────────────────────────────────────
 # Main executable
 # ──────────────────────────────────────────────
-add_executable(shockwake-log src/main.cpp)
+add_executable(swl src/main.cpp)
 
-target_link_libraries(shockwake-log PRIVATE shockwake_lib)
+target_link_libraries(swl PRIVATE swl_lib)
 
 # ──────────────────────────────────────────────
 # Tests
@@ -94,32 +94,32 @@ if(BUILD_TESTS)
     add_executable(test_ring_buffer
         tests/test_ring_buffer.cpp
     )
-    target_link_libraries(test_ring_buffer PRIVATE shockwake_lib)
+    target_link_libraries(test_ring_buffer PRIVATE swl_lib)
     add_test(NAME RingBuffer COMMAND test_ring_buffer)
 
     add_executable(test_log_scanner
         tests/test_log_scanner.cpp
     )
-    target_link_libraries(test_log_scanner PRIVATE shockwake_lib)
+    target_link_libraries(test_log_scanner PRIVATE swl_lib)
     add_test(NAME LogScanner COMMAND test_log_scanner)
 
     add_executable(test_inotify
         tests/test_inotify.cpp
     )
-    target_link_libraries(test_inotify PRIVATE shockwake_lib)
+    target_link_libraries(test_inotify PRIVATE swl_lib)
     add_test(NAME InotifyWatcher COMMAND test_inotify)
 
     add_executable(test_webhook
         tests/test_webhook.cpp
     )
-    target_link_libraries(test_webhook PRIVATE shockwake_lib)
+    target_link_libraries(test_webhook PRIVATE swl_lib)
     add_test(NAME WebhookAlert COMMAND test_webhook)
 endif()
 
 # ──────────────────────────────────────────────
 # Install
 # ──────────────────────────────────────────────
-install(TARGETS shockwake-log
+install(TARGETS swl
     RUNTIME DESTINATION bin
 )
 
@@ -133,6 +133,6 @@ install(DIRECTORY include/
 # ──────────────────────────────────────────────
 add_custom_target(uninstall
     COMMAND ${CMAKE_COMMAND} -E remove
-        ${CMAKE_INSTALL_PREFIX}/bin/shockwake-log
-    COMMENT "Uninstalling shockwake-log"
+        ${CMAKE_INSTALL_PREFIX}/bin/swl
+    COMMENT "Uninstalling swl"
 )
