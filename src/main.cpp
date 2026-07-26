@@ -37,8 +37,10 @@ std::string get_timestamp()
 {
     auto now = std::chrono::system_clock::now();
     auto time = std::chrono::system_clock::to_time_t(now);
+    struct tm tm_buf;
+    localtime_r(&time, &tm_buf);
     char buf[64];
-    strftime(buf, sizeof(buf), "%Y%m%d_%H%M%S", localtime(&time));
+    strftime(buf, sizeof(buf), "%Y%m%d_%H%M%S", &tm_buf);
     return buf;
 }
 
@@ -65,7 +67,8 @@ std::string get_uptime(time_t start)
 std::string escape_json(const std::string &s)
 {
     std::string result;
-    for (char c : s)
+    result.reserve(s.size());
+    for (unsigned char c : s)
     {
         switch (c)
         {
@@ -74,13 +77,20 @@ std::string escape_json(const std::string &s)
         case '\n': result += "\\n"; break;
         case '\r': result += "\\r"; break;
         case '\t': result += "\\t"; break;
-        default: result += c;
+        default:
+            if (c < 0x20) {
+                char hex[8];
+                snprintf(hex, sizeof(hex), "\\u%04x", c);
+                result += hex;
+            } else {
+                result += static_cast<char>(c);
+            }
         }
     }
     return result;
 }
 
-void write_incident(const Config &config, const std::string &keyword,
+std::string write_incident(const Config &config, const std::string &keyword,
                     const std::vector<std::string> &context,
                     const std::vector<std::string> &trailing)
 {
@@ -88,6 +98,11 @@ void write_incident(const Config &config, const std::string &keyword,
 
     std::string filename = config.incident_dir + "/incident_" + get_timestamp() + ".log";
     std::ofstream out(filename);
+
+    if (!out.is_open()) {
+        std::cerr << "[incident] error: cannot write to " << filename << "\n";
+        return "";
+    }
 
     out << "=== swl incident report ===\n";
     out << "Timestamp: " << get_timestamp() << "\n";
@@ -108,6 +123,7 @@ void write_incident(const Config &config, const std::string &keyword,
 
     out.close();
     std::cout << "[incident] saved: " << filename << "\n";
+    return filename;
 }
 
 std::string build_webhook_payload(const std::string &keyword,
@@ -709,9 +725,6 @@ int cmd_monitor(Config &config)
         std::string line;
         while (std::getline(stream, line))
         {
-            if (line.empty())
-                continue;
-
             if (config.max_line_length > 0 && line.size() > config.max_line_length)
                 line.resize(config.max_line_length);
 
@@ -737,10 +750,13 @@ int cmd_monitor(Config &config)
 
                 auto pre_context = buffer.snapshot();
                 auto post_context = buffer.tail(config.trailing_lines);
+                // Remove trigger line from both contexts (shown separately)
+                if (!pre_context.empty())
+                    pre_context.pop_back();
+                if (!post_context.empty())
+                    post_context.pop_back();
 
-                write_incident(config, keyword, pre_context, post_context);
-
-                std::string incident_file = config.incident_dir + "/incident_" + get_timestamp() + ".log";
+                std::string incident_file = write_incident(config, keyword, pre_context, post_context);
                 if (has_webhook)
                 {
                     std::string payload = build_webhook_payload(keyword, config.log_path, incident_file);

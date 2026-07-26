@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 #ifndef SWL_VERSION
-#define SWL_VERSION "2.0.0"
+#define SWL_VERSION "2.0.1"
 #endif
 
 namespace fs = std::filesystem;

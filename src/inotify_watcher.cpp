@@ -27,17 +27,16 @@ InotifyWatcher::InotifyWatcher(const std::string& filepath)
     if (dir_path_.empty()) dir_path_ = ".";
     filename_ = p.filename().string();
 
-    if (pipe(wake_pipe_) < 0)
+    if (pipe2(wake_pipe_, O_NONBLOCK | O_CLOEXEC) < 0)
         throw std::runtime_error("Failed to create wake pipe");
-    fcntl(wake_pipe_[1], F_SETFL, O_NONBLOCK);
 
-    inotify_fd_ = inotify_init();
+    inotify_fd_ = inotify_init1(IN_CLOEXEC);
     if (inotify_fd_ < 0) {
         close(wake_pipe_[0]); close(wake_pipe_[1]);
         throw std::runtime_error("Failed to initialize inotify");
     }
 
-    file_fd_ = open(filepath_.c_str(), O_RDONLY);
+    file_fd_ = open(filepath_.c_str(), O_RDONLY | O_CLOEXEC);
     if (file_fd_ < 0) {
         close(inotify_fd_);
         close(wake_pipe_[0]); close(wake_pipe_[1]);
