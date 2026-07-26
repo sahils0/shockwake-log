@@ -23,9 +23,11 @@ struct Config {
     std::string pid_file;
     size_t window_size = 100;
     size_t trailing_lines = 20;
+    size_t max_line_length = 8192;
     int max_retries = 3;
     int retry_delay_ms = 1000;
     int cooldown_seconds = 60;
+    bool ssl_verify = true;
     std::vector<std::string> triggers;
     std::vector<std::string> excludes;
 };

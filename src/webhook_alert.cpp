@@ -16,8 +16,8 @@ static void *thread_entry(void *arg)
     return nullptr;
 }
 
-WebhookAlert::WebhookAlert(const std::string &webhook_url, int max_retries, int retry_delay_ms)
-    : webhook_url_(webhook_url), max_retries_(max_retries), retry_delay_ms_(retry_delay_ms), running_(false), worker_thread_(0), dropped_count_(0)
+WebhookAlert::WebhookAlert(const std::string &webhook_url, int max_retries, int retry_delay_ms, bool ssl_verify)
+    : webhook_url_(webhook_url), max_retries_(max_retries), retry_delay_ms_(retry_delay_ms), ssl_verify_(ssl_verify), running_(false), worker_thread_(0), dropped_count_(0)
 {
     curl_global_init(CURL_GLOBAL_DEFAULT);
 }
@@ -117,6 +117,8 @@ bool WebhookAlert::send_post(const std::string &payload)
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 5L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, ssl_verify_ ? 1L : 0L);
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, ssl_verify_ ? 2L : 0L);
 
     CURLcode res = curl_easy_perform(curl);
 

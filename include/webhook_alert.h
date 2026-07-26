@@ -19,7 +19,7 @@ struct PendingAlert {
 class WebhookAlert
 {
 public:
-    explicit WebhookAlert(const std::string &webhook_url, int max_retries = 3, int retry_delay_ms = 1000);
+    explicit WebhookAlert(const std::string &webhook_url, int max_retries = 3, int retry_delay_ms = 1000, bool ssl_verify = true);
     ~WebhookAlert();
 
     void enqueue(const std::string &payload);
@@ -38,6 +38,7 @@ private:
     std::string webhook_url_;
     int max_retries_;
     int retry_delay_ms_;
+    bool ssl_verify_;
     std::queue<PendingAlert> alert_queue_;
     std::mutex queue_mutex_;
     std::condition_variable queue_cv_;

@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <vector>
 #include <stdexcept>
+#include <iostream>
 #include <sys/stat.h>
 #include <filesystem>
 
@@ -130,9 +131,14 @@ std::string InotifyWatcher::wait_for_changes() {
         bool needs_reattach = false;
         bool file_moved_away = false;
         bool had_file_event = false;
+        bool had_overflow = false;
         const char* ptr = event_buf;
         while (ptr < event_buf + len) {
             const auto* event = reinterpret_cast<const struct inotify_event*>(ptr);
+
+            if (event->mask & IN_Q_OVERFLOW) {
+                had_overflow = true;
+            }
 
             if (event->wd == file_watch_fd_ && (event->mask & IN_MODIFY))
                 had_file_event = true;
@@ -164,6 +170,14 @@ std::string InotifyWatcher::wait_for_changes() {
         if (needs_reattach) {
             reattach_file_watch();
             break;
+        }
+
+        if (had_overflow) {
+            // Kernel dropped events — resync read offset to avoid stale data
+            struct stat st;
+            if (stat(filepath_.c_str(), &st) == 0) {
+                read_offset_ = st.st_size;
+            }
         }
 
         if (file_moved_away)

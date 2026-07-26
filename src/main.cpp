@@ -201,7 +201,11 @@ int cmd_init()
         << "# delay between retries in milliseconds\n"
         << "retry_delay = 1000\n\n"
         << "# drop to this user after opening log (optional, requires root)\n"
-        << "# user = syslog\n";
+        << "# user = syslog\n\n"
+        << "# disable ssl certificate verification for self-signed certs\n"
+        << "# ssl_verify = true\n\n"
+        << "# max characters per log line (longer lines are truncated)\n"
+        << "# max_line_length = 8192\n";
     out.close();
 
     std::cout << "created " << conf << " — edit it, then run:\n"
@@ -479,23 +483,34 @@ int cmd_logs(const Config &config)
         return 1;
     }
 
-    // Read to end first
+    std::signal(SIGINT, [](int) {
+        std::cout << std::flush;
+        _exit(0);
+    });
+
+    // Seek to end — only follow NEW content (like tail -f)
     file.seekg(0, std::ios::end);
+
     while (g_running) {
+        // Save position before attempting getline (tells where we are if it fails)
+        std::streampos pos_before = file.tellg();
+
         std::string line;
         if (std::getline(file, line)) {
-            std::cout << line << "\n";
+            std::cout << line << "\n" << std::flush;
         } else {
-            // Check for new content
-            auto pos = file.tellg();
+            // getline failed (EOF) — clear error and check if file grew
             file.clear();
+
             file.seekg(0, std::ios::end);
-            auto end = file.tellg();
-            if (pos == end) {
-                // No new content, wait
-                file.clear();
-                file.seekg(pos);
-                usleep(500000); // 500ms
+            std::streampos end_pos = file.tellg();
+
+            if (pos_before >= std::streampos(0) && pos_before < end_pos) {
+                // File grew — seek back to old position and read new content
+                file.seekg(pos_before);
+            } else {
+                // No new content — wait before retrying
+                usleep(500000);
             }
         }
     }
@@ -628,7 +643,7 @@ int cmd_monitor(Config &config)
     scanner.set_excludes(config.excludes);
 
     bool has_webhook = !config.webhook_url.empty();
-    WebhookAlert alerter(config.webhook_url, config.max_retries, config.retry_delay_ms);
+    WebhookAlert alerter(config.webhook_url, config.max_retries, config.retry_delay_ms, config.ssl_verify);
     if (has_webhook)
         alerter.start();
 
@@ -696,6 +711,9 @@ int cmd_monitor(Config &config)
         {
             if (line.empty())
                 continue;
+
+            if (config.max_line_length > 0 && line.size() > config.max_line_length)
+                line.resize(config.max_line_length);
 
             buffer.push(line);
             g_lines_processed++;

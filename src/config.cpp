@@ -79,6 +79,10 @@ static bool load_config_file(Config& config, const std::string& path) {
             config.retry_delay_ms = std::stoi(value);
         } else if (key == "cooldown") {
             config.cooldown_seconds = std::stoi(value);
+        } else if (key == "max_line_length") {
+            config.max_line_length = std::stoul(value);
+        } else if (key == "ssl_verify") {
+            config.ssl_verify = (value == "true" || value == "1" || value == "yes");
         }
     }
     return true;
@@ -215,6 +219,8 @@ void print_usage(const char* program) {
               << "  --cooldown <sec>      Min seconds between alerts per trigger (default: 60)\n"
               << "  --retries <n>         Max webhook retry attempts (default: 3, 0 = no retry)\n"
               << "  --retry-delay <ms>    Delay between retries in ms (default: 1000)\n"
+              << "  --no-ssl-verify       Disable SSL certificate verification (for self-signed certs)\n"
+              << "  --max-line-length <n> Max characters per log line (default: 8192, 0 = unlimited)\n"
               << "  --user <user>         Drop to this user after opening log (requires root)\n"
               << "  --pid-file <path>     PID file for stop/clean commands\n"
               << "  --help, -h            Show this help\n\n"
@@ -294,6 +300,13 @@ Config parse_args(int argc, char* argv[]) {
                     config.max_retries = std::stoi(argv[++i]);
                 } else if (strcmp(argv[i], "--retry-delay") == 0 && i + 1 < argc) {
                     config.retry_delay_ms = std::stoi(argv[++i]);
+                } else if (strcmp(argv[i], "--ssl-verify") == 0 && i + 1 < argc) {
+                    std::string val = argv[++i];
+                    config.ssl_verify = (val == "true" || val == "1" || val == "yes");
+                } else if (strcmp(argv[i], "--no-ssl-verify") == 0) {
+                    config.ssl_verify = false;
+                } else if (strcmp(argv[i], "--max-line-length") == 0 && i + 1 < argc) {
+                    config.max_line_length = std::stoul(argv[++i]);
                 } else if (strcmp(argv[i], "--pid-file") == 0 && i + 1 < argc) {
                     config.pid_file = argv[++i];
                 } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
@@ -363,6 +376,13 @@ Config parse_args(int argc, char* argv[]) {
             config.retry_delay_ms = std::stoi(argv[++i]);
         } else if (strcmp(argv[i], "--cooldown") == 0 && i + 1 < argc) {
             config.cooldown_seconds = std::stoi(argv[++i]);
+        } else if (strcmp(argv[i], "--ssl-verify") == 0 && i + 1 < argc) {
+            std::string val = argv[++i];
+            config.ssl_verify = (val == "true" || val == "1" || val == "yes");
+        } else if (strcmp(argv[i], "--no-ssl-verify") == 0) {
+            config.ssl_verify = false;
+        } else if (strcmp(argv[i], "--max-line-length") == 0 && i + 1 < argc) {
+            config.max_line_length = std::stoul(argv[++i]);
         } else if (strcmp(argv[i], "--pid-file") == 0 && i + 1 < argc) {
             config.pid_file = argv[++i];
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
