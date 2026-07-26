@@ -8,7 +8,7 @@
 #include <unistd.h>
 
 #ifndef SWL_VERSION
-#define SWL_VERSION "2.0.1"
+#define SWL_VERSION "2.0.2"
 #endif
 
 namespace fs = std::filesystem;
@@ -18,6 +18,21 @@ static std::string trim(const std::string& s) {
     if (start == std::string::npos) return "";
     size_t end = s.find_last_not_of(" \t\r\n");
     return s.substr(start, end - start + 1);
+}
+
+static int safe_stoi(const std::string& value, int default_val) {
+    try { return std::stoi(value); }
+    catch (...) { std::cerr << "warning: invalid integer value '" << value << "', using default\n"; return default_val; }
+}
+
+static unsigned long safe_stoul(const std::string& value, unsigned long default_val) {
+    try { return std::stoul(value); }
+    catch (...) { std::cerr << "warning: invalid integer value '" << value << "', using default\n"; return default_val; }
+}
+
+static bool validate_webhook_url(const std::string& url) {
+    if (url.empty()) return true;
+    return url.substr(0, 7) == "http://" || url.substr(0, 8) == "https://";
 }
 
 static void parse_triggers(Config& config, const std::string& value) {
@@ -64,13 +79,16 @@ static bool load_config_file(Config& config, const std::string& path) {
         if (key == "log") {
             config.log_path = value;
         } else if (key == "webhook") {
+            if (!validate_webhook_url(value))
+                std::cerr << "warning: webhook url should start with http:// or https://\n";
             config.webhook_url = value;
         } else if (key == "triggers") {
             parse_triggers(config, value);
         } else if (key == "window") {
-            config.window_size = std::stoul(value);
+            config.window_size = safe_stoul(value, config.window_size);
+            if (config.window_size == 0) config.window_size = 1;
         } else if (key == "trailing") {
-            config.trailing_lines = std::stoul(value);
+            config.trailing_lines = safe_stoul(value, config.trailing_lines);
         } else if (key == "incidents") {
             config.incident_dir = value;
         } else if (key == "user") {
@@ -78,13 +96,16 @@ static bool load_config_file(Config& config, const std::string& path) {
         } else if (key == "excludes") {
             parse_csv(value, config.excludes);
         } else if (key == "retries") {
-            config.max_retries = std::stoi(value);
+            config.max_retries = safe_stoi(value, config.max_retries);
+            if (config.max_retries < 0) config.max_retries = 0;
         } else if (key == "retry_delay") {
-            config.retry_delay_ms = std::stoi(value);
+            config.retry_delay_ms = safe_stoi(value, config.retry_delay_ms);
+            if (config.retry_delay_ms < 0) config.retry_delay_ms = 0;
         } else if (key == "cooldown") {
-            config.cooldown_seconds = std::stoi(value);
+            config.cooldown_seconds = safe_stoi(value, config.cooldown_seconds);
+            if (config.cooldown_seconds < 0) config.cooldown_seconds = 0;
         } else if (key == "max_line_length") {
-            config.max_line_length = std::stoul(value);
+            config.max_line_length = safe_stoul(value, config.max_line_length);
         } else if (key == "ssl_verify") {
             config.ssl_verify = (value == "true" || value == "1" || value == "yes");
         }
@@ -292,9 +313,9 @@ Config parse_args(int argc, char* argv[]) {
                 } else if (strcmp(argv[i], "--webhook") == 0 && i + 1 < argc) {
                     config.webhook_url = argv[++i];
                 } else if (strcmp(argv[i], "--window") == 0 && i + 1 < argc) {
-                    config.window_size = std::stoul(argv[++i]);
+                    config.window_size = safe_stoul(argv[++i], config.window_size);
                 } else if (strcmp(argv[i], "--trailing") == 0 && i + 1 < argc) {
-                    config.trailing_lines = std::stoul(argv[++i]);
+                    config.trailing_lines = safe_stoul(argv[++i], config.trailing_lines);
                 } else if (strcmp(argv[i], "--incidents") == 0 && i + 1 < argc) {
                     config.incident_dir = argv[++i];
                 } else if (strcmp(argv[i], "--triggers") == 0 && i + 1 < argc) {
@@ -302,20 +323,20 @@ Config parse_args(int argc, char* argv[]) {
                 } else if (strcmp(argv[i], "--exclude") == 0 && i + 1 < argc) {
                     parse_csv(argv[++i], config.excludes);
                 } else if (strcmp(argv[i], "--cooldown") == 0 && i + 1 < argc) {
-                    config.cooldown_seconds = std::stoi(argv[++i]);
+                    config.cooldown_seconds = safe_stoi(argv[++i], config.cooldown_seconds);
                 } else if (strcmp(argv[i], "--user") == 0 && i + 1 < argc) {
                     config.drop_user = argv[++i];
                 } else if (strcmp(argv[i], "--retries") == 0 && i + 1 < argc) {
-                    config.max_retries = std::stoi(argv[++i]);
+                    config.max_retries = safe_stoi(argv[++i], config.max_retries);
                 } else if (strcmp(argv[i], "--retry-delay") == 0 && i + 1 < argc) {
-                    config.retry_delay_ms = std::stoi(argv[++i]);
+                    config.retry_delay_ms = safe_stoi(argv[++i], config.retry_delay_ms);
                 } else if (strcmp(argv[i], "--ssl-verify") == 0 && i + 1 < argc) {
                     std::string val = argv[++i];
                     config.ssl_verify = (val == "true" || val == "1" || val == "yes");
                 } else if (strcmp(argv[i], "--no-ssl-verify") == 0) {
                     config.ssl_verify = false;
                 } else if (strcmp(argv[i], "--max-line-length") == 0 && i + 1 < argc) {
-                    config.max_line_length = std::stoul(argv[++i]);
+                    config.max_line_length = safe_stoul(argv[++i], config.max_line_length);
                 } else if (strcmp(argv[i], "--pid-file") == 0 && i + 1 < argc) {
                     config.pid_file = argv[++i];
                 } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
@@ -371,9 +392,9 @@ Config parse_args(int argc, char* argv[]) {
         } else if (strcmp(argv[i], "--webhook") == 0 && i + 1 < argc) {
             config.webhook_url = argv[++i];
         } else if (strcmp(argv[i], "--window") == 0 && i + 1 < argc) {
-            config.window_size = std::stoul(argv[++i]);
+            config.window_size = safe_stoul(argv[++i], config.window_size);
         } else if (strcmp(argv[i], "--trailing") == 0 && i + 1 < argc) {
-            config.trailing_lines = std::stoul(argv[++i]);
+            config.trailing_lines = safe_stoul(argv[++i], config.trailing_lines);
         } else if (strcmp(argv[i], "--incidents") == 0 && i + 1 < argc) {
             config.incident_dir = argv[++i];
         } else if (strcmp(argv[i], "--user") == 0 && i + 1 < argc) {
@@ -383,18 +404,18 @@ Config parse_args(int argc, char* argv[]) {
         } else if (strcmp(argv[i], "--exclude") == 0 && i + 1 < argc) {
             parse_csv(argv[++i], config.excludes);
         } else if (strcmp(argv[i], "--retries") == 0 && i + 1 < argc) {
-            config.max_retries = std::stoi(argv[++i]);
+            config.max_retries = safe_stoi(argv[++i], config.max_retries);
         } else if (strcmp(argv[i], "--retry-delay") == 0 && i + 1 < argc) {
-            config.retry_delay_ms = std::stoi(argv[++i]);
+            config.retry_delay_ms = safe_stoi(argv[++i], config.retry_delay_ms);
         } else if (strcmp(argv[i], "--cooldown") == 0 && i + 1 < argc) {
-            config.cooldown_seconds = std::stoi(argv[++i]);
+            config.cooldown_seconds = safe_stoi(argv[++i], config.cooldown_seconds);
         } else if (strcmp(argv[i], "--ssl-verify") == 0 && i + 1 < argc) {
             std::string val = argv[++i];
             config.ssl_verify = (val == "true" || val == "1" || val == "yes");
         } else if (strcmp(argv[i], "--no-ssl-verify") == 0) {
             config.ssl_verify = false;
         } else if (strcmp(argv[i], "--max-line-length") == 0 && i + 1 < argc) {
-            config.max_line_length = std::stoul(argv[++i]);
+            config.max_line_length = safe_stoul(argv[++i], config.max_line_length);
         } else if (strcmp(argv[i], "--pid-file") == 0 && i + 1 < argc) {
             config.pid_file = argv[++i];
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {

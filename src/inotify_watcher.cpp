@@ -61,8 +61,10 @@ void InotifyWatcher::setup_watches() {
 
     dir_watch_fd_ = inotify_add_watch(inotify_fd_, dir_path_.c_str(),
                                        IN_CREATE | IN_MOVED_TO | IN_MOVED_FROM | IN_DELETE);
-    if (dir_watch_fd_ < 0)
+    if (dir_watch_fd_ < 0) {
         dir_watch_fd_ = -1;
+        std::cerr << "[swl] warning: cannot watch directory for rotation (dir: " << dir_path_ << ")\n";
+    }
 }
 
 bool InotifyWatcher::reattach_file_watch() {

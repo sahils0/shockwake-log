@@ -554,6 +554,97 @@ void test_cooldown_flag() {
     std::cout << "PASS: test_cooldown_flag\n";
 }
 
+void test_bad_numeric_config_file() {
+    fs::create_directories("/tmp/swl_test_cfg_bad");
+    std::ofstream cfg("/tmp/swl_test_cfg_bad/test.conf");
+    cfg << "window = not_a_number\n"
+        << "trailing = abc\n"
+        << "retries = xyz\n"
+        << "cooldown = hello\n"
+        << "retry_delay = 12.34.56\n"
+        << "max_line_length = big\n";
+    cfg.close();
+
+    char* ma[] = {const_cast<char*>("swl"),
+                  const_cast<char*>("--config"), const_cast<char*>("/tmp/swl_test_cfg_bad/test.conf"),
+                  const_cast<char*>("--log"), const_cast<char*>("/tmp/test.log")};
+    Config c = parse_args(5, ma);
+    assert(c.window_size == 100);
+    assert(c.trailing_lines == 20);
+    assert(c.max_retries == 3);
+    assert(c.cooldown_seconds == 60);
+    assert(c.retry_delay_ms == 1000);
+    assert(c.max_line_length == 8192);
+
+    fs::remove_all("/tmp/swl_test_cfg_bad");
+    std::cout << "PASS: test_bad_numeric_config_file\n";
+}
+
+void test_bad_numeric_cli_args() {
+    char* ma[] = {const_cast<char*>("swl"),
+                  const_cast<char*>("--log"), const_cast<char*>("/tmp/test.log"),
+                  const_cast<char*>("--window"), const_cast<char*>("notanumber"),
+                  const_cast<char*>("--retries"), const_cast<char*>("abc")};
+    Config c = parse_args(7, ma);
+    assert(c.window_size == 100);
+    assert(c.max_retries == 3);
+    std::cout << "PASS: test_bad_numeric_cli_args\n";
+}
+
+void test_window_zero_clamped() {
+    fs::create_directories("/tmp/swl_test_cfg_w0");
+    std::ofstream cfg("/tmp/swl_test_cfg_w0/test.conf");
+    cfg << "window = 0\n";
+    cfg.close();
+
+    char* ma[] = {const_cast<char*>("swl"),
+                  const_cast<char*>("--config"), const_cast<char*>("/tmp/swl_test_cfg_w0/test.conf"),
+                  const_cast<char*>("--log"), const_cast<char*>("/tmp/test.log")};
+    Config c = parse_args(5, ma);
+    assert(c.window_size == 1);
+
+    fs::remove_all("/tmp/swl_test_cfg_w0");
+    std::cout << "PASS: test_window_zero_clamped\n";
+}
+
+void test_negative_retries_clamped() {
+    fs::create_directories("/tmp/swl_test_cfg_neg");
+    std::ofstream cfg("/tmp/swl_test_cfg_neg/test.conf");
+    cfg << "retries = -5\n"
+        << "cooldown = -10\n"
+        << "retry_delay = -100\n";
+    cfg.close();
+
+    char* ma[] = {const_cast<char*>("swl"),
+                  const_cast<char*>("--config"), const_cast<char*>("/tmp/swl_test_cfg_neg/test.conf"),
+                  const_cast<char*>("--log"), const_cast<char*>("/tmp/test.log")};
+    Config c = parse_args(5, ma);
+    assert(c.max_retries == 0);
+    assert(c.cooldown_seconds == 0);
+    assert(c.retry_delay_ms == 0);
+
+    fs::remove_all("/tmp/swl_test_cfg_neg");
+    std::cout << "PASS: test_negative_retries_clamped\n";
+}
+
+void test_webhook_invalid_url_accepted() {
+    char* ma[] = {const_cast<char*>("swl"),
+                  const_cast<char*>("--log"), const_cast<char*>("/tmp/test.log"),
+                  const_cast<char*>("--webhook"), const_cast<char*>("not-a-url")};
+    Config c = parse_args(5, ma);
+    assert(c.webhook_url == "not-a-url");
+    std::cout << "PASS: test_webhook_invalid_url_accepted\n";
+}
+
+void test_webhook_http_url_accepted() {
+    char* ma[] = {const_cast<char*>("swl"),
+                  const_cast<char*>("--log"), const_cast<char*>("/tmp/test.log"),
+                  const_cast<char*>("--webhook"), const_cast<char*>("http://localhost:8080/hook")};
+    Config c = parse_args(5, ma);
+    assert(c.webhook_url == "http://localhost:8080/hook");
+    std::cout << "PASS: test_webhook_http_url_accepted\n";
+}
+
 int main() {
     test_default_triggers();
     test_custom_flags();
@@ -597,7 +688,13 @@ int main() {
     test_retries_flag();
     test_retry_delay_flag();
     test_cooldown_flag();
+    test_bad_numeric_config_file();
+    test_bad_numeric_cli_args();
+    test_window_zero_clamped();
+    test_negative_retries_clamped();
+    test_webhook_invalid_url_accepted();
+    test_webhook_http_url_accepted();
 
-    std::cout << "\nAll 42 tests passed!\n";
+    std::cout << "\nAll 49 tests passed!\n";
     return 0;
 }

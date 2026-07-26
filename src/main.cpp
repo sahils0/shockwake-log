@@ -371,9 +371,13 @@ int cmd_status(const Config &config)
         pf.close();
         if (!pid_str.empty())
         {
-            pid_t check = std::stoi(pid_str);
-            if (kill(check, 0) == 0)
-                pid = check;
+            try {
+                pid_t check = std::stoi(pid_str);
+                if (kill(check, 0) == 0)
+                    pid = check;
+            } catch (...) {
+                std::cerr << "warning: corrupted pid file\n";
+            }
         }
     }
 
@@ -562,7 +566,14 @@ int cmd_stop(const Config &config)
         return 1;
     }
 
-    pid_t pid = std::stoi(pid_str);
+    pid_t pid;
+    try {
+        pid = std::stoi(pid_str);
+    } catch (...) {
+        std::cerr << "error: corrupted pid file\n";
+        fs::remove(pid_file);
+        return 1;
+    }
 
     if (kill(pid, 0) != 0) {
         std::cerr << "process " << pid << " is not running. cleaning up.\n";
@@ -597,11 +608,15 @@ int cmd_clean(const Config &config)
         pf.close();
 
         if (!pid_str.empty()) {
-            pid_t pid = std::stoi(pid_str);
-            if (kill(pid, 0) == 0) {
-                std::cout << "stopping monitor (pid " << pid << ")...\n";
-                kill(pid, SIGTERM);
-                sleep(1);
+            try {
+                pid_t pid = std::stoi(pid_str);
+                if (kill(pid, 0) == 0) {
+                    std::cout << "stopping monitor (pid " << pid << ")...\n";
+                    kill(pid, SIGTERM);
+                    sleep(1);
+                }
+            } catch (...) {
+                std::cerr << "warning: corrupted pid file\n";
             }
         }
         fs::remove(pid_file);
@@ -642,20 +657,19 @@ int cmd_monitor(Config &config)
         return 1;
     }
 
-    // Write PID file
     std::string pid_file = config.pid_file.empty() ? "./.swl.pid" : config.pid_file;
+
+    std::signal(SIGTERM, signal_handler);
+    std::signal(SIGINT, signal_handler);
+
     {
         std::ofstream pf(pid_file);
         pf << getpid();
     }
 
-    // Clean up PID on exit
     auto cleanup_pid = [&pid_file]() {
         fs::remove(pid_file);
     };
-
-    std::signal(SIGTERM, signal_handler);
-    std::signal(SIGINT, signal_handler);
 
     InotifyWatcher watcher(config.log_path);
     RingBuffer buffer(config.window_size);

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 project(swl
-    VERSION 2.0.1
+    VERSION 2.0.2
     DESCRIPTION "Real-time log anomaly detection and contextual debugging"
     LANGUAGES CXX
 )

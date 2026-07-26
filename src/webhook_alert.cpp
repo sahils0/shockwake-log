@@ -122,8 +122,20 @@ bool WebhookAlert::send_post(const std::string &payload)
 
     CURLcode res = curl_easy_perform(curl);
 
+    bool ok = (res == CURLE_OK);
+    if (!ok) {
+        std::cerr << "[webhook] curl error: " << curl_easy_strerror(res) << "\n";
+    } else {
+        long response_code = 0;
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+        if (response_code < 200 || response_code >= 300) {
+            std::cerr << "[webhook] http status " << response_code << "\n";
+            ok = false;
+        }
+    }
+
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
 
-    return (res == CURLE_OK);
+    return ok;
 }

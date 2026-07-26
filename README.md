@@ -125,7 +125,7 @@ cmake --build build -j$(nproc)
 ctest --test-dir build --output-on-failure
 ```
 
-6 test suites, 135 tests. No external test framework — raw `assert()` + stdout.
+6 test suites, 142 tests. No external test framework — raw `assert()` + stdout.
 
 ## License
 
