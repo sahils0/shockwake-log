@@ -2,6 +2,7 @@
 
 #include <string>
 #include <sys/types.h>
+#include <atomic>
 
 class InotifyWatcher {
 public:
@@ -18,7 +19,7 @@ private:
     std::string filepath_;
     std::string dir_path_;
     std::string filename_;
-    bool running_;
+    std::atomic<bool> running_;
     int inotify_fd_;
     int file_watch_fd_;
     int dir_watch_fd_;

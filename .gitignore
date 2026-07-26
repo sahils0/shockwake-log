@@ -26,6 +26,8 @@ test_iw
 test_wh
 test_*
 
+sandbox/
+
 # CMake generated
 CMakeCache.txt
 CMakeFiles/

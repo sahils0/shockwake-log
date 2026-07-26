@@ -1,7 +1,7 @@
 #include "ring_buffer.h"
 
 RingBuffer::RingBuffer(size_t capacity)
-    : capacity_(capacity), buffer_(capacity)
+    : capacity_(capacity > 0 ? capacity : 1), buffer_(capacity > 0 ? capacity : 1)
 {
 }
 

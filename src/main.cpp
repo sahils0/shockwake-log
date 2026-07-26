@@ -45,11 +45,11 @@ std::string get_timestamp()
 std::string get_uptime(time_t start)
 {
     time_t now = time(nullptr);
-    int diff = static_cast<int>(now - start);
-    int days = diff / 86400;
-    int hours = (diff % 86400) / 3600;
-    int mins = (diff % 3600) / 60;
-    int secs = diff % 60;
+    long diff = static_cast<long>(now - start);
+    long days = diff / 86400;
+    long hours = (diff % 86400) / 3600;
+    long mins = (diff % 3600) / 60;
+    long secs = diff % 60;
 
     std::ostringstream ss;
     if (days > 0)
@@ -364,7 +364,7 @@ int cmd_status(const Config &config)
     // live dashboard — refresh every second
     std::signal(SIGINT, [](int) {
         std::cout << "\033[?25h"; // show cursor
-        std::exit(0);
+        _exit(0);
     });
     std::cout << "\033[?25l"; // hide cursor
 
