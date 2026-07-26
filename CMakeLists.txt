@@ -65,6 +65,9 @@ add_library(swl_lib STATIC
     src/inotify_watcher.cpp
     src/log_scanner.cpp
     src/webhook_alert.cpp
+    src/utilities.cpp
+    src/subcommands.cpp
+    src/status_dashboard.cpp
 )
 
 target_include_directories(swl_lib PUBLIC
@@ -124,18 +127,9 @@ if(BUILD_TESTS)
 
     add_executable(test_main
         tests/test_main.cpp
-        src/config.cpp
-        src/inotify_watcher.cpp
-        src/log_scanner.cpp
-        src/ring_buffer.cpp
-        src/webhook_alert.cpp
     )
     target_include_directories(test_main PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
-    )
-    target_link_libraries(test_main PRIVATE
-        CURL::libcurl
-        Threads::Threads
     )
     target_compile_definitions(test_main PRIVATE SWL_VERSION="${PROJECT_VERSION}")
     add_test(NAME Main COMMAND test_main)

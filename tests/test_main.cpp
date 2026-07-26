@@ -1,8 +1,5 @@
-// test_main.cpp — Tests for pure functions defined in main.cpp
-// Uses #define to rename main() so we can include main.cpp as a library.
-#define main swl_main_unused
-#include "../src/main.cpp"
-#undef main
+// test_main.cpp — Tests for pure functions defined in utilities.cpp
+#include "../src/utilities.cpp"
 
 #include <cassert>
 #include <iostream>
