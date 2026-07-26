@@ -94,7 +94,12 @@ std::string write_incident(const Config &config, const std::string &keyword,
                     const std::vector<std::string> &context,
                     const std::vector<std::string> &trailing)
 {
-    fs::create_directories(config.incident_dir);
+    std::error_code ec;
+    fs::create_directories(config.incident_dir, ec);
+    if (ec) {
+        std::cerr << "[incident] error: cannot create directory " << config.incident_dir << ": " << ec.message() << "\n";
+        return "";
+    }
 
     std::string filename = config.incident_dir + "/incident_" + get_timestamp() + ".log";
     std::ofstream out(filename);

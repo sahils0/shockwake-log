@@ -17,14 +17,24 @@ flowchart LR
 
 ## Install
 
+### From source (cmake)
+
 ```bash
 git clone https://github.com/sahils0/shockwake-log.git
 cd shockwake-log
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)
+sudo cp build/bin/swl /usr/local/bin/
+```
+
+### From source (g++ fallback)
+
+```bash
 g++ -std=c++17 -O2 src/*.cpp -Iinclude -lcurl -lpthread -o swl
 sudo mv swl /usr/local/bin/
 ```
 
-**Requirements:** Linux, g++ 7+, libcurl-dev (`sudo apt install libcurl4-openssl-dev`)
+**Requirements:** Linux, g++ 7+, libcurl-dev (`sudo apt install libcurl4-openssl-dev`), cmake 3.14+ (optional, for cmake build)
 
 ## Quick Start
 
@@ -98,7 +108,24 @@ Auto-loaded from (first found wins):
 | `--no-ssl-verify` | Disable SSL cert verification | disabled |
 | `--max-line-length <n>` | Max chars per log line | `8192` |
 | `--user <user>` | Drop privileges after opening log | none |
+| `--pid-file <path>` | PID file for stop/clean commands | `.swl.pid` |
 | `--help` | Show help | — |
+| `--version` | Show version | — |
+
+## Building & Testing
+
+```bash
+# build
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)
+
+# run all test suites
+cmake -B build -DBUILD_TESTS=ON
+cmake --build build -j$(nproc)
+ctest --test-dir build --output-on-failure
+```
+
+6 test suites, 135 tests. No external test framework — raw `assert()` + stdout.
 
 ## License
 

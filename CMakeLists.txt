@@ -115,6 +115,30 @@ if(BUILD_TESTS)
     )
     target_link_libraries(test_webhook PRIVATE swl_lib)
     add_test(NAME WebhookAlert COMMAND test_webhook)
+
+    add_executable(test_config
+        tests/test_config.cpp
+    )
+    target_link_libraries(test_config PRIVATE swl_lib)
+    add_test(NAME Config COMMAND test_config)
+
+    add_executable(test_main
+        tests/test_main.cpp
+        src/config.cpp
+        src/inotify_watcher.cpp
+        src/log_scanner.cpp
+        src/ring_buffer.cpp
+        src/webhook_alert.cpp
+    )
+    target_include_directories(test_main PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_link_libraries(test_main PRIVATE
+        CURL::libcurl
+        Threads::Threads
+    )
+    target_compile_definitions(test_main PRIVATE SWL_VERSION="${PROJECT_VERSION}")
+    add_test(NAME Main COMMAND test_main)
 endif()
 
 # ──────────────────────────────────────────────
