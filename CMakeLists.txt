@@ -147,6 +147,10 @@ install(DIRECTORY include/
     FILES_MATCHING PATTERN "*.h"
 )
 
+install(FILES man/swl.1
+    DESTINATION share/man/man1
+)
+
 # ──────────────────────────────────────────────
 # Uninstall
 # ──────────────────────────────────────────────

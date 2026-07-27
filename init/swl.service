@@ -1,6 +1,7 @@
 [Unit]
 Description=swl log monitor
 After=rsyslog.service
+Documentation=man:swl(1)
 
 [Service]
 Type=simple
@@ -9,6 +10,38 @@ Restart=always
 RestartSec=3
 StandardOutput=journal
 StandardError=journal
+
+# User/Group
+User=swl
+Group=swl
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+# File system access
+ReadWritePaths=/var/log/swl-incidents
+ReadOnlyPaths=/etc/swl /var/log
+
+# Network access (for webhooks)
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+# System calls
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+
+# Resource limits
+LimitNOFILE=65536
 
 [Install]
 WantedBy=multi-user.target

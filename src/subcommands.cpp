@@ -37,7 +37,7 @@ int cmd_init()
         << "# lines to capture after the trigger line\n"
         << "trailing = 20\n\n"
         << "# directory for incident reports\n"
-        << "incidents = ./incidents\n\n"
+        << "incidents = /var/log/swl-incidents\n\n"
         << "# cooldown: min seconds between alerts for same trigger (0 = no limit)\n"
         << "cooldown = 60\n\n"
         << "# max webhook retry attempts on failure (0 = no retry)\n"

@@ -126,17 +126,17 @@ static std::string find_config_file() {
 
     std::vector<std::string> candidates;
 
-    // Current directory
-    candidates.push_back("./.swl.conf");
-    candidates.push_back("./swl.conf");
+    // System config (production default)
+    candidates.push_back("/etc/swl/config");
 
     // User config dir
     if (!home.empty()) {
         candidates.push_back(home + "/.config/swl/config");
     }
 
-    // System config
-    candidates.push_back("/etc/swl/config");
+    // Current directory (development)
+    candidates.push_back("./.swl.conf");
+    candidates.push_back("./swl.conf");
 
     for (const auto& path : candidates) {
         if (fs::exists(path)) return path;
@@ -240,7 +240,7 @@ void print_usage(const char* program) {
               << "  --exclude <e1,e2>     Exclusion patterns — lines matching these are skipped\n"
               << "  --window <n>          Lines to keep in context buffer (default: 100)\n"
               << "  --trailing <n>        Lines to capture after trigger (default: 20)\n"
-              << "  --incidents <dir>     Directory for incident reports (default: ./incidents)\n"
+              << "  --incidents <dir>     Directory for incident reports (default: /var/log/swl-incidents)\n"
               << "  --cooldown <sec>      Min seconds between alerts per trigger (default: 60)\n"
               << "  --retries <n>         Max webhook retry attempts (default: 3, 0 = no retry)\n"
               << "  --retry-delay <ms>    Delay between retries in ms (default: 1000)\n"
@@ -264,128 +264,15 @@ void print_usage(const char* program) {
               << "  excludes = DEBUG,healthcheck\n"
               << "  window = 100\n"
               << "  trailing = 20\n"
-              << "  incidents = ./incidents\n"
+              << "  incidents = /var/log/swl-incidents\n"
               << "  cooldown = 60\n"
               << "  retries = 3\n"
               << "  retry_delay = 1000\n"
               << "  user = syslog\n";
 }
 
-Config parse_args(int argc, char* argv[]) {
-    Config config;
-
-    if (argc < 2) {
-        // No args: auto-discover and run with defaults
-        config.log_path = discover_log_file();
-        config.config_path = find_config_file();
-        if (!config.config_path.empty()) {
-            load_config_file(config, config.config_path);
-        }
-        if (config.triggers.empty())
-            config.triggers = {"FATAL", "ERROR"};
-        if (config.incident_dir.empty())
-            config.incident_dir = "./incidents";
-        return config;
-    }
-
-    // Check if first arg is a subcommand or a flag or a file
-    std::string first = argv[1];
-    if (first == "--help" || first == "-h") {
-        print_usage(argv[0]);
-        exit(0);
-    }
-    if (first == "--version" || first == "-V") {
-        std::cout << "swl " << SWL_VERSION << "\n";
-        exit(0);
-    }
-
-    // Detect subcommand (must be first non-flag arg)
-    if (!first.empty() && first[0] != '-') {
-        SubCommand sc = detect_subcommand(first);
-        if (sc != SubCommand::MONITOR) {
-            config.subcommand = sc;
-            // Parse remaining args for subcommands that need them
-            for (int i = 2; i < argc; i++) {
-                if (strcmp(argv[i], "--config") == 0 && i + 1 < argc) {
-                    config.config_path = argv[++i];
-                } else if (strcmp(argv[i], "--log") == 0 && i + 1 < argc) {
-                    config.log_path = argv[++i];
-                } else if (strcmp(argv[i], "--webhook") == 0 && i + 1 < argc) {
-                    config.webhook_url = argv[++i];
-                } else if (strcmp(argv[i], "--window") == 0 && i + 1 < argc) {
-                    config.window_size = safe_stoul(argv[++i], config.window_size);
-                } else if (strcmp(argv[i], "--trailing") == 0 && i + 1 < argc) {
-                    config.trailing_lines = safe_stoul(argv[++i], config.trailing_lines);
-                } else if (strcmp(argv[i], "--incidents") == 0 && i + 1 < argc) {
-                    config.incident_dir = argv[++i];
-                } else if (strcmp(argv[i], "--triggers") == 0 && i + 1 < argc) {
-                    parse_triggers(config, argv[++i]);
-                } else if (strcmp(argv[i], "--exclude") == 0 && i + 1 < argc) {
-                    parse_csv(argv[++i], config.excludes);
-                } else if (strcmp(argv[i], "--cooldown") == 0 && i + 1 < argc) {
-                    config.cooldown_seconds = safe_stoi(argv[++i], config.cooldown_seconds);
-                } else if (strcmp(argv[i], "--user") == 0 && i + 1 < argc) {
-                    config.drop_user = argv[++i];
-                } else if (strcmp(argv[i], "--retries") == 0 && i + 1 < argc) {
-                    config.max_retries = safe_stoi(argv[++i], config.max_retries);
-                } else if (strcmp(argv[i], "--retry-delay") == 0 && i + 1 < argc) {
-                    config.retry_delay_ms = safe_stoi(argv[++i], config.retry_delay_ms);
-                } else if (strcmp(argv[i], "--ssl-verify") == 0 && i + 1 < argc) {
-                    std::string val = argv[++i];
-                    config.ssl_verify = (val == "true" || val == "1" || val == "yes");
-                } else if (strcmp(argv[i], "--no-ssl-verify") == 0) {
-                    config.ssl_verify = false;
-                } else if (strcmp(argv[i], "--max-line-length") == 0 && i + 1 < argc) {
-                    config.max_line_length = safe_stoul(argv[++i], config.max_line_length);
-                } else if (strcmp(argv[i], "--pid-file") == 0 && i + 1 < argc) {
-                    config.pid_file = argv[++i];
-                } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
-                    print_usage(argv[0]);
-                    exit(0);
-                } else if (strcmp(argv[i], "--version") == 0 || strcmp(argv[i], "-V") == 0) {
-                    std::cout << "swl " << SWL_VERSION << "\n";
-                    exit(0);
-                }
-            }
-
-            // For status: load config if available
-            if (config.subcommand == SubCommand::STATUS) {
-                if (config.config_path.empty())
-                    config.config_path = find_config_file();
-                if (!config.config_path.empty())
-                    load_config_file(config, config.config_path);
-                if (config.triggers.empty())
-                    config.triggers = {"FATAL", "ERROR"};
-                if (config.incident_dir.empty())
-                    config.incident_dir = "./incidents";
-            }
-
-            if (config.pid_file.empty())
-                config.pid_file = find_pid_file();
-
-            return config;
-        }
-    }
-
-    // Monitor mode: parse all flags
-    // First pass: find config file
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--config") == 0 && i + 1 < argc) {
-            config.config_path = argv[++i];
-        }
-    }
-
-    // Auto-load config from standard locations if not explicitly provided
-    if (config.config_path.empty()) {
-        config.config_path = find_config_file();
-    }
-
-    if (!config.config_path.empty()) {
-        load_config_file(config, config.config_path);
-    }
-
-    // Second pass: parse CLI flags (override config file)
-    for (int i = 1; i < argc; i++) {
+static void parse_flags(Config& config, int argc, char* argv[], int start_idx, bool handle_positional = false) {
+    for (int i = start_idx; i < argc; i++) {
         if (strcmp(argv[i], "--config") == 0) { i++; continue; }
         if (strcmp(argv[i], "--log") == 0 && i + 1 < argc) {
             config.log_path = argv[++i];
@@ -424,11 +311,85 @@ Config parse_args(int argc, char* argv[]) {
         } else if (strcmp(argv[i], "--version") == 0 || strcmp(argv[i], "-V") == 0) {
             std::cout << "swl " << SWL_VERSION << "\n";
             exit(0);
-        } else if (argv[i][0] != '-') {
-            // Treat as logfile (positional arg)
+        } else if (handle_positional && argv[i][0] != '-') {
             config.log_path = argv[i];
         }
     }
+}
+
+Config parse_args(int argc, char* argv[]) {
+    Config config;
+
+    if (argc < 2) {
+    // No args: auto-discover and run with defaults
+    config.log_path = discover_log_file();
+    config.config_path = find_config_file();
+    if (!config.config_path.empty()) {
+        load_config_file(config, config.config_path);
+    }
+    if (config.triggers.empty())
+        config.triggers = {"FATAL", "ERROR"};
+    if (config.incident_dir.empty())
+        config.incident_dir = "/var/log/swl-incidents";
+    return config;
+    }
+
+    // Check if first arg is a subcommand or a flag or a file
+    std::string first = argv[1];
+    if (first == "--help" || first == "-h") {
+        print_usage(argv[0]);
+        exit(0);
+    }
+    if (first == "--version" || first == "-V") {
+        std::cout << "swl " << SWL_VERSION << "\n";
+        exit(0);
+    }
+
+    // Detect subcommand (must be first non-flag arg)
+    if (!first.empty() && first[0] != '-') {
+        SubCommand sc = detect_subcommand(first);
+        if (sc != SubCommand::MONITOR) {
+            config.subcommand = sc;
+            parse_flags(config, argc, argv, 2);
+
+            // For status: load config if available
+            if (config.subcommand == SubCommand::STATUS) {
+                if (config.config_path.empty())
+                    config.config_path = find_config_file();
+                if (!config.config_path.empty())
+                    load_config_file(config, config.config_path);
+                if (config.triggers.empty())
+                    config.triggers = {"FATAL", "ERROR"};
+                if (config.incident_dir.empty())
+                    config.incident_dir = "/var/log/swl-incidents";
+            }
+
+            if (config.pid_file.empty())
+                config.pid_file = find_pid_file();
+
+            return config;
+        }
+    }
+
+    // Monitor mode: parse all flags
+    // First pass: find config file
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--config") == 0 && i + 1 < argc) {
+            config.config_path = argv[++i];
+        }
+    }
+
+    // Auto-load config from standard locations if not explicitly provided
+    if (config.config_path.empty()) {
+        config.config_path = find_config_file();
+    }
+
+    if (!config.config_path.empty()) {
+        load_config_file(config, config.config_path);
+    }
+
+    // Second pass: parse CLI flags (override config file)
+    parse_flags(config, argc, argv, 1, true);
 
     // Auto-discover log file if not provided
     if (config.log_path.empty()) {
@@ -437,7 +398,7 @@ Config parse_args(int argc, char* argv[]) {
 
     // Apply defaults
     if (config.incident_dir.empty())
-        config.incident_dir = "./incidents";
+        config.incident_dir = "/var/log/swl-incidents";
     if (config.triggers.empty())
         config.triggers = {"FATAL", "ERROR"};
     if (config.pid_file.empty())
