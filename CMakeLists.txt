@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 project(swl
-    VERSION 2.0.0
+    VERSION 2.0.2
     DESCRIPTION "Real-time log anomaly detection and contextual debugging"
     LANGUAGES CXX
 )
@@ -65,6 +65,9 @@ add_library(swl_lib STATIC
     src/inotify_watcher.cpp
     src/log_scanner.cpp
     src/webhook_alert.cpp
+    src/utilities.cpp
+    src/subcommands.cpp
+    src/status_dashboard.cpp
 )
 
 target_include_directories(swl_lib PUBLIC
@@ -115,6 +118,21 @@ if(BUILD_TESTS)
     )
     target_link_libraries(test_webhook PRIVATE swl_lib)
     add_test(NAME WebhookAlert COMMAND test_webhook)
+
+    add_executable(test_config
+        tests/test_config.cpp
+    )
+    target_link_libraries(test_config PRIVATE swl_lib)
+    add_test(NAME Config COMMAND test_config)
+
+    add_executable(test_main
+        tests/test_main.cpp
+    )
+    target_include_directories(test_main PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_compile_definitions(test_main PRIVATE SWL_VERSION="${PROJECT_VERSION}")
+    add_test(NAME Main COMMAND test_main)
 endif()
 
 # ──────────────────────────────────────────────
@@ -127,6 +145,10 @@ install(TARGETS swl
 install(DIRECTORY include/
     DESTINATION include
     FILES_MATCHING PATTERN "*.h"
+)
+
+install(FILES man/swl.1
+    DESTINATION share/man/man1
 )
 
 # ──────────────────────────────────────────────

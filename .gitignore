@@ -24,7 +24,6 @@ test_rb
 test_ls
 test_iw
 test_wh
-test_*
 
 sandbox/
 

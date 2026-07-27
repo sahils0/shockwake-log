@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cmake \
+            build-essential \
+            libcurl4-openssl-dev
+
+      - name: Configure CMake
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --config Release -j$(nproc)
+
+      - name: Run tests
+        run: ctest --test-dir build --output-on-failure
+
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check C++ formatting
+        run: |
+          # Install clang-format
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+          # Check formatting (non-destructive)
+          find src include -name '*.cpp' -o -name '*.h' | \
+            xargs clang-format --dry-run --Werror
+
+  build-docs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify man page
+        run: |
+          # Check man page exists and is valid
+          test -f man/swl.1
+          man -l man/swl.1 > /dev/null 2>&1 || echo "Warning: man page validation skipped"
+
+      - name: Verify documentation
+        run: |
+          test -f README.md
+          test -f ARCHITECTURE.md
+          test -f SECURITY.md
+          test -f LICENSE

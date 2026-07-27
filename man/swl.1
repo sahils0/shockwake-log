@@ -1,0 +1,195 @@
+.\" Man page for swl (1)
+.\" Copyright (c) 2026 Sahil
+.\"
+.TH SWL 1 "2026-07-27" "swl 2.0.2" "User Commands"
+.SH NAME
+swl \- real-time log anomaly detection with contextual debugging
+.SH SYNOPSIS
+.B swl
+.RI [ OPTIONS ]
+.RI [ LOGFILE ]
+.br
+.B swl
+.I SUBCOMMAND
+.RI [ OPTIONS ]
+.SH DESCRIPTION
+.B swl
+watches log files 24/7 for anomalies. When something goes wrong, it captures
+the surrounding context and optionally sends alerts to Slack, Discord, or any
+webhook endpoint.
+.PP
+Unlike simple grep-based tools,
+.B swl
+maintains a sliding window of recent lines and captures both pre-context (before
+the trigger) and post-context (after the trigger), giving you the full picture
+of what happened.
+.SH OPTIONS
+.SS General
+.TP
+.BR \-h ", " \-\-help
+Show help message and exit.
+.TP
+.BR \-V ", " \-\-version
+Show version and exit.
+.SS Monitoring
+.TP
+.BI \-\-log " PATH"
+Log file to monitor. Auto-discovered if omitted.
+.TP
+.BI \-\-webhook " URL"
+Webhook URL for alerts (Slack, Discord, etc.). Omit for local-only logging.
+.TP
+.BI \-\-config " FILE"
+Path to config file. Auto-loaded from standard locations.
+.TP
+.BI \-\-triggers " K1,K2,..."
+Comma-separated keywords or regex patterns. Default: \fBFATAL,ERROR\fR.
+.TP
+.BI \-\-exclude " E1,E2,..."
+Exclusion patterns. Lines matching these are skipped.
+.TP
+.BI \-\-window " N"
+Lines to keep in context buffer. Default: \fB100\fR.
+.TP
+.BI \-\-trailing " N"
+Lines to capture after trigger. Default: \fB20\fR.
+.TP
+.BI \-\-incidents " DIR"
+Directory for incident reports. Default: \fB/var/log/swl-incidents\fR.
+.TP
+.BI \-\-cooldown " SEC"
+Minimum seconds between alerts per trigger. Default: \fB60\fR.
+.SS Webhook
+.TP
+.BI \-\-retries " N"
+Max webhook retry attempts. Default: \fB3\fR.
+.TP
+.BI \-\-retry\-delay " MS"
+Delay between retries in milliseconds. Default: \fB1000\fR.
+.TP
+.B \-\-no\-ssl\-verify
+Disable SSL certificate verification (for self-signed certs).
+.SS Security
+.TP
+.BI \-\-user " USER"
+Drop to this user after opening log (requires root).
+.TP
+.BI \-\-pid\-file " PATH"
+PID file for stop/clean commands. Default: \fB.swl.pid\fR.
+.SS Limits
+.TP
+.BI \-\-max\-line\-length " N"
+Maximum characters per log line. Default: \fB8192\fR.
+.SH SUBCOMMANDS
+.TP
+.B swl init
+Generate config file in current directory.
+.TP
+.B swl status
+Print current config and runtime information.
+.TP
+.B swl incidents
+List recent incident reports.
+.TP
+.B swl logs
+Follow latest incident file.
+.TP
+.B swl stop
+Stop a running instance.
+.TP
+.B swl clean
+Stop and remove generated files.
+.SH CONFIGURATION
+swl loads configuration from the first file found in:
+.PP
+.RS 4
+.nf
+/etc/swl/config
+~/.config/swl/config
+./.swl.conf
+.fi
+.RE
+.PP
+Config file format:
+.PP
+.RS 4
+.nf
+log = /var/log/app.log
+webhook = https://hooks.slack.com/services/xxx
+triggers = FATAL,ERROR,WARN
+excludes = DEBUG,healthcheck
+window = 100
+trailing = 20
+cooldown = 60
+.fi
+.RE
+.SH EXAMPLES
+Monitor syslog:
+.PP
+.RS 4
+.nf
+swl /var/log/syslog
+.fi
+.RE
+.PP
+Monitor with webhook alerts:
+.PP
+.RS 4
+.nf
+swl \-\-webhook https://hooks.slack.com/services/xxx /var/log/app.log
+.fi
+.RE
+.PP
+Generate and edit config:
+.PP
+.RS 4
+.nf
+swl init
+vim .swl.conf
+.fi
+.RE
+.PP
+Check status:
+.PP
+.RS 4
+.nf
+swl status
+.fi
+.RE
+.SH FILES
+.TP
+.B /etc/swl/config
+System config file (highest priority in production).
+.TP
+.B ~/.config/swl/config
+User config file.
+.TP
+.B ./.swl.conf
+Local config file (development).
+.TP
+.B ./.swl.pid
+PID file for running instance.
+.TP
+.B /var/log/swl-incidents/
+Directory for incident reports.
+.SH EXIT STATUS
+.TP
+.B 0
+Success (or help/version displayed).
+.TP
+.B 1
+Error (invalid arguments, file not found, etc.).
+.SH ENVIRONMENT
+.TP
+.B HOME
+Used to find user config directory.
+.SH SEE ALSO
+.BR systemd (1),
+.BR inotify (7),
+.BR curl (1)
+.SH BUGS
+Report bugs at: https://github.com/sahils0/shockwake-log/issues
+.SH AUTHOR
+Sahil <shaikhsahil4883@gmail.com>
+.SH LICENSE
+MIT License. See LICENSE file for details.

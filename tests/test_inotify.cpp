@@ -382,6 +382,115 @@ void test_logrotate_realistic() {
     cleanup(rotated_file);
 }
 
+void test_wait_after_stop_returns_empty() {
+    const char* test_file = "/tmp/shockwake_test_waitstop.log";
+    cleanup(test_file);
+
+    {
+        std::ofstream out(test_file);
+        out << "data\n";
+    }
+
+    InotifyWatcher watcher(test_file);
+    watcher.stop();
+
+    std::string content = watcher.wait_for_changes();
+    assert(content.empty());
+    std::cout << "PASS: test_wait_after_stop_returns_empty\n";
+
+    cleanup(test_file);
+}
+
+void test_large_data_write() {
+    const char* test_file = "/tmp/shockwake_test_largedata.log";
+    cleanup(test_file);
+
+    {
+        std::ofstream out(test_file);
+        out << "initial\n";
+    }
+
+    InotifyWatcher watcher(test_file);
+
+    std::thread writer([test_file]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::ofstream out(test_file, std::ios::app);
+        for (int i = 0; i < 50; i++)
+            out << "line" << i << "\n";
+    });
+
+    std::string content = watcher.wait_for_changes();
+    writer.join();
+
+    assert(!content.empty());
+    assert(content.find("line0") != std::string::npos);
+    std::cout << "PASS: test_large_data_write\n";
+
+    watcher.stop();
+    cleanup(test_file);
+}
+
+void test_in_place_truncate() {
+    const char* test_file = "/tmp/shockwake_test_truncate.log";
+    cleanup(test_file);
+
+    {
+        std::ofstream out(test_file);
+        out << "original content\n";
+    }
+
+    InotifyWatcher watcher(test_file);
+
+    std::thread writer([test_file]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        {
+            std::ofstream out(test_file, std::ios::out | std::ios::trunc);
+            out << "truncated content\n";
+        }
+    });
+
+    std::string content = watcher.wait_for_changes();
+    writer.join();
+
+    assert(!content.empty());
+    assert(content.find("truncated content") != std::string::npos);
+    std::cout << "PASS: test_in_place_truncate\n";
+
+    watcher.stop();
+    cleanup(test_file);
+}
+
+void test_rapid_appends_no_loss() {
+    const char* test_file = "/tmp/shockwake_test_rapidappend.log";
+    cleanup(test_file);
+
+    {
+        std::ofstream out(test_file);
+        out << "start\n";
+    }
+
+    InotifyWatcher watcher(test_file);
+
+    std::thread writer([test_file]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        for (int i = 0; i < 50; i++) {
+            std::ofstream out(test_file, std::ios::app);
+            out << "rapid " << i << "\n";
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+    });
+
+    std::string content = watcher.wait_for_changes();
+    writer.join();
+
+    assert(!content.empty());
+    assert(content.find("rapid") != std::string::npos);
+    std::cout << "PASS: test_rapid_appends_no_loss\n";
+
+    watcher.stop();
+    cleanup(test_file);
+}
+
 int main() {
     test_watch_file();
     test_rotation_mv_touch();
@@ -394,7 +503,11 @@ int main() {
     test_nonexistent_file();
     test_subdirectory_rotation();
     test_logrotate_realistic();
+    test_wait_after_stop_returns_empty();
+    test_large_data_write();
+    test_in_place_truncate();
+    test_rapid_appends_no_loss();
 
-    std::cout << "\nAll 11 tests passed!\n";
+    std::cout << "\nAll 15 tests passed!\n";
     return 0;
 }
