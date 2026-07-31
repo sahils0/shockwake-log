@@ -22,4 +22,5 @@ std::string write_incident(const Config &config, const std::string &keyword,
 bool drop_privileges(const std::string &username);
 int count_incidents(const std::string &dir);
 pid_t read_pid_file(const std::string &pid_file);
+bool wait_for_process_exit(pid_t pid, int timeout_ms);
 void print_config_summary(const Config &config, const std::string &prefix);

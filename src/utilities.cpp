@@ -1,4 +1,5 @@
 #include "utilities.h"
+#include <cerrno>
 #include <chrono>
 #include <cstring>
 #include <ctime>
@@ -205,6 +206,17 @@ pid_t read_pid_file(const std::string &pid_file) {
   } catch (...) {
   }
   return 0;
+}
+
+bool wait_for_process_exit(pid_t pid, int timeout_ms) {
+  auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+  while (std::chrono::steady_clock::now() < deadline) {
+    if (kill(pid, 0) != 0 && errno == ESRCH)
+      return true;
+    usleep(100000);
+  }
+  return kill(pid, 0) != 0 && errno == ESRCH;
 }
 
 void print_config_summary(const Config &config, const std::string &prefix) {

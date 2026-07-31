@@ -133,6 +133,16 @@ if(BUILD_TESTS)
     )
     target_compile_definitions(test_main PRIVATE SWL_VERSION="${PROJECT_VERSION}")
     add_test(NAME Main COMMAND test_main)
+
+    add_executable(test_subcommands
+        tests/test_subcommands.cpp
+    )
+    target_include_directories(test_subcommands PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_compile_definitions(test_subcommands PRIVATE SWL_VERSION="${PROJECT_VERSION}")
+    target_link_libraries(test_subcommands PRIVATE swl_lib)
+    add_test(NAME Subcommands COMMAND test_subcommands)
 endif()
 
 # ──────────────────────────────────────────────
