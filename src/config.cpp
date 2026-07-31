@@ -23,7 +23,11 @@ static std::string trim(const std::string &s) {
 
 static int safe_stoi(const std::string &value, int default_val) {
   try {
-    return std::stoi(value);
+    size_t pos = 0;
+    int result = std::stoi(value, &pos);
+    if (pos != value.size())
+      throw std::invalid_argument("trailing characters");
+    return result;
   } catch (...) {
     std::cerr << "warning: invalid integer value '" << value
               << "', using default\n";
@@ -34,7 +38,11 @@ static int safe_stoi(const std::string &value, int default_val) {
 static unsigned long safe_stoul(const std::string &value,
                                 unsigned long default_val) {
   try {
-    return std::stoul(value);
+    size_t pos = 0;
+    unsigned long result = std::stoul(value, &pos);
+    if (pos != value.size())
+      throw std::invalid_argument("trailing characters");
+    return result;
   } catch (...) {
     std::cerr << "warning: invalid integer value '" << value
               << "', using default\n";

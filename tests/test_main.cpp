@@ -10,6 +10,12 @@
 
 namespace fs = std::filesystem;
 
+// pid-unique incident dir so concurrent runs (ctest -j, parallel fallback
+// binaries) never collide on the same temp directories.
+static std::string inc_dir(const char* name) {
+    return "/tmp/swl_inc_" + std::to_string(getpid()) + "_" + name;
+}
+
 void test_escape_json_plain() {
     assert(escape_json("hello world") == "hello world");
     std::cout << "PASS: test_escape_json_plain\n";
@@ -141,10 +147,11 @@ void test_build_webhook_payload_escapes_special_chars() {
 }
 
 void test_write_incident_basic() {
-    fs::create_directories("/tmp/swl_test_inc");
+    std::string d = inc_dir("basic");
+    fs::create_directories(d);
 
     Config config;
-    config.incident_dir = "/tmp/swl_test_inc";
+    config.incident_dir = d;
     config.log_path = "/var/log/test.log";
 
     std::vector<std::string> context = {"line1", "line2"};
@@ -166,15 +173,16 @@ void test_write_incident_basic() {
     assert(content.find("trigger line") != std::string::npos);
     assert(content.find("/var/log/test.log") != std::string::npos);
 
-    fs::remove_all("/tmp/swl_test_inc");
+    fs::remove_all(d);
     std::cout << "PASS: test_write_incident_basic\n";
 }
 
 void test_write_incident_empty_context() {
-    fs::create_directories("/tmp/swl_test_inc2");
+    std::string d = inc_dir("empty");
+    fs::create_directories(d);
 
     Config config;
-    config.incident_dir = "/tmp/swl_test_inc2";
+    config.incident_dir = d;
     config.log_path = "/var/log/test.log";
 
     std::vector<std::string> context;
@@ -190,7 +198,7 @@ void test_write_incident_empty_context() {
     assert(content.find("FATAL") != std::string::npos);
     assert(content.find("pre-trigger context") != std::string::npos);
 
-    fs::remove_all("/tmp/swl_test_inc2");
+    fs::remove_all(d);
     std::cout << "PASS: test_write_incident_empty_context\n";
 }
 
@@ -206,26 +214,28 @@ void test_write_incident_bad_dir() {
 }
 
 void test_write_incident_returns_same_file_format() {
-    fs::create_directories("/tmp/swl_test_inc3");
+    std::string d = inc_dir("format");
+    fs::create_directories(d);
 
     Config config;
-    config.incident_dir = "/tmp/swl_test_inc3";
+    config.incident_dir = d;
     config.log_path = "/var/log/test.log";
 
     std::string file = write_incident(config, "WARN", {}, {});
     assert(file.find("incident_") != std::string::npos);
     assert(file.find(".log") != std::string::npos);
-    assert(file.find("/tmp/swl_test_inc3/") == 0);
+    assert(file.find(d + "/") == 0);
 
-    fs::remove_all("/tmp/swl_test_inc3");
+    fs::remove_all(d);
     std::cout << "PASS: test_write_incident_returns_same_file_format\n";
 }
 
 void test_write_incident_keyword_in_report() {
-    fs::create_directories("/tmp/swl_test_inc4");
+    std::string d = inc_dir("keyword");
+    fs::create_directories(d);
 
     Config config;
-    config.incident_dir = "/tmp/swl_test_inc4";
+    config.incident_dir = d;
     config.log_path = "/tmp/app.log";
 
     std::string file = write_incident(config, "OOM\\s+killed", {"before"}, {"after"});
@@ -234,15 +244,16 @@ void test_write_incident_keyword_in_report() {
                          std::istreambuf_iterator<char>());
     assert(content.find("OOM\\s+killed") != std::string::npos);
 
-    fs::remove_all("/tmp/swl_test_inc4");
+    fs::remove_all(d);
     std::cout << "PASS: test_write_incident_keyword_in_report\n";
 }
 
 void test_write_incident_special_chars_in_context() {
-    fs::create_directories("/tmp/swl_test_inc5");
+    std::string d = inc_dir("special");
+    fs::create_directories(d);
 
     Config config;
-    config.incident_dir = "/tmp/swl_test_inc5";
+    config.incident_dir = d;
     config.log_path = "/tmp/app.log";
 
     std::vector<std::string> context = {"line with \"quotes\" and \\backslash"};
@@ -254,7 +265,7 @@ void test_write_incident_special_chars_in_context() {
                          std::istreambuf_iterator<char>());
     assert(content.find("line with \"quotes\" and \\backslash") != std::string::npos);
 
-    fs::remove_all("/tmp/swl_test_inc5");
+    fs::remove_all(d);
     std::cout << "PASS: test_write_incident_special_chars_in_context\n";
 }
 

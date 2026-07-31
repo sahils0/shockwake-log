@@ -95,6 +95,12 @@ option(BUILD_TESTS "Build unit tests" ON)
 if(BUILD_TESTS)
     enable_testing()
 
+    # Tests must exercise their assert() checks in every build type. Release
+    # builds define NDEBUG which compiles assert() out entirely, silently
+    # turning test suites into no-ops. This flag applies only to targets
+    # defined below (the swl binary above keeps normal Release behavior).
+    add_compile_options(-UNDEBUG)
+
     add_executable(test_ring_buffer
         tests/test_ring_buffer.cpp
     )
