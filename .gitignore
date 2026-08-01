@@ -1,5 +1,6 @@
 # Build directories
 build/
+build-fast/
 cmake-build-/
 
 # IDE files
@@ -27,11 +28,10 @@ test_wh
 
 sandbox/
 
-# CMake generated
+# CMake generated (the root Makefile wrapper is tracked)
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
-Makefile
 CTestTestfile.cmake
 Testing/
 compile_commands.json

@@ -9,6 +9,12 @@
 
 namespace fs = std::filesystem;
 
+// pid-unique config dir so concurrent runs (ctest -j, parallel fallback
+// binaries) never collide on the same temp config files.
+static std::string cfg_dir(const char* name) {
+    return "/tmp/swl_cfg_" + std::to_string(getpid()) + "_" + name;
+}
+
 static int run_parse_args(const char* argv[], int argc) {
     char* mutable_argv[32];
     for (int i = 0; i < argc; i++)
@@ -198,8 +204,10 @@ void test_subcommand_clean() {
 }
 
 void test_config_file_loading() {
-    fs::create_directories("/tmp/swl_test_cfg");
-    std::ofstream cfg("/tmp/swl_test_cfg/test.conf");
+    std::string cdir = cfg_dir("basic");
+    std::string cpath = cdir + "/test.conf";
+    fs::create_directories(cdir);
+    std::ofstream cfg(cpath);
     cfg << "# comment line\n"
         << "log = /var/log/test.log\n"
         << "webhook = https://hooks.example.com/test\n"
@@ -220,7 +228,7 @@ void test_config_file_loading() {
     cfg.close();
 
     char* ma[] = {const_cast<char*>("swl"),
-                  const_cast<char*>("--config"), const_cast<char*>("/tmp/swl_test_cfg/test.conf"),
+                  const_cast<char*>("--config"), const_cast<char*>(cpath.c_str()),
                   const_cast<char*>("--log"), const_cast<char*>("/tmp/test.log")};
     Config c = parse_args(5, ma);
     assert(c.log_path == "/tmp/test.log");
@@ -239,7 +247,7 @@ void test_config_file_loading() {
     assert(c.ssl_verify == false);
     assert(c.drop_user == "syslog");
 
-    fs::remove_all("/tmp/swl_test_cfg");
+    fs::remove_all(cdir);
     std::cout << "PASS: test_config_file_loading\n";
 }
 
@@ -256,26 +264,30 @@ void test_config_file_missing() {
 }
 
 void test_config_empty_triggers_get_defaults() {
-    fs::create_directories("/tmp/swl_test_cfg2");
-    std::ofstream cfg("/tmp/swl_test_cfg2/test.conf");
+    std::string cdir = cfg_dir("empty");
+    std::string cpath = cdir + "/test.conf";
+    fs::create_directories(cdir);
+    std::ofstream cfg(cpath);
     cfg << "triggers =\n";
     cfg.close();
 
     char* ma[] = {const_cast<char*>("swl"),
-                  const_cast<char*>("--config"), const_cast<char*>("/tmp/swl_test_cfg2/test.conf"),
+                  const_cast<char*>("--config"), const_cast<char*>(cpath.c_str()),
                   const_cast<char*>("--log"), const_cast<char*>("/tmp/test.log")};
     Config c = parse_args(5, ma);
     assert(c.triggers.size() == 2);
     assert(c.triggers[0] == "FATAL");
     assert(c.triggers[1] == "ERROR");
 
-    fs::remove_all("/tmp/swl_test_cfg2");
+    fs::remove_all(cdir);
     std::cout << "PASS: test_config_empty_triggers_get_defaults\n";
 }
 
 void test_config_file_comments_and_blank_lines() {
-    fs::create_directories("/tmp/swl_test_cfg3");
-    std::ofstream cfg("/tmp/swl_test_cfg3/test.conf");
+    std::string cdir = cfg_dir("comments");
+    std::string cpath = cdir + "/test.conf";
+    fs::create_directories(cdir);
+    std::ofstream cfg(cpath);
     cfg << "# this is a comment\n"
         << "\n"
         << "   \n"
@@ -284,75 +296,83 @@ void test_config_file_comments_and_blank_lines() {
     cfg.close();
 
     char* ma[] = {const_cast<char*>("swl"),
-                  const_cast<char*>("--config"), const_cast<char*>("/tmp/swl_test_cfg3/test.conf"),
+                  const_cast<char*>("--config"), const_cast<char*>(cpath.c_str()),
                   const_cast<char*>("--log"), const_cast<char*>("/tmp/test.log")};
     Config c = parse_args(5, ma);
     assert(c.window_size == 200);
 
-    fs::remove_all("/tmp/swl_test_cfg3");
+    fs::remove_all(cdir);
     std::cout << "PASS: test_config_file_comments_and_blank_lines\n";
 }
 
 void test_config_value_with_equals() {
-    fs::create_directories("/tmp/swl_test_cfg4");
-    std::ofstream cfg("/tmp/swl_test_cfg4/test.conf");
+    std::string cdir = cfg_dir("equals");
+    std::string cpath = cdir + "/test.conf";
+    fs::create_directories(cdir);
+    std::ofstream cfg(cpath);
     cfg << "webhook = https://example.com/hook?key=abc&secret=xyz\n";
     cfg.close();
 
     char* ma[] = {const_cast<char*>("swl"),
-                  const_cast<char*>("--config"), const_cast<char*>("/tmp/swl_test_cfg4/test.conf"),
+                  const_cast<char*>("--config"), const_cast<char*>(cpath.c_str()),
                   const_cast<char*>("--log"), const_cast<char*>("/tmp/test.log")};
     Config c = parse_args(5, ma);
     assert(c.webhook_url == "https://example.com/hook?key=abc&secret=xyz");
 
-    fs::remove_all("/tmp/swl_test_cfg4");
+    fs::remove_all(cdir);
     std::cout << "PASS: test_config_value_with_equals\n";
 }
 
 void test_config_ssl_verify_true_variants() {
-    fs::create_directories("/tmp/swl_test_cfg5");
+    std::string cdir = cfg_dir("ssl_true");
+    std::string cpath = cdir + "/test.conf";
+    fs::create_directories(cdir);
     for (const char* val : {"true", "1", "yes"}) {
-        std::ofstream cfg("/tmp/swl_test_cfg5/test.conf");
+        std::ofstream cfg(cpath);
         cfg << "ssl_verify = " << val << "\n";
         cfg.close();
 
         char* ma[] = {const_cast<char*>("swl"),
-                      const_cast<char*>("--config"), const_cast<char*>("/tmp/swl_test_cfg5/test.conf"),
+                      const_cast<char*>("--config"), const_cast<char*>(cpath.c_str()),
                       const_cast<char*>("--log"), const_cast<char*>("/tmp/test.log")};
         Config c = parse_args(5, ma);
         assert(c.ssl_verify == true);
     }
-    fs::remove_all("/tmp/swl_test_cfg5");
+    fs::remove_all(cdir);
     std::cout << "PASS: test_config_ssl_verify_true_variants\n";
 }
 
 void test_config_ssl_verify_false_variants() {
-    fs::create_directories("/tmp/swl_test_cfg6");
+    std::string cdir = cfg_dir("ssl_false");
+    std::string cpath = cdir + "/test.conf";
+    fs::create_directories(cdir);
     for (const char* val : {"false", "0", "no", "True", "YES", "on"}) {
-        std::ofstream cfg("/tmp/swl_test_cfg6/test.conf");
+        std::ofstream cfg(cpath);
         cfg << "ssl_verify = " << val << "\n";
         cfg.close();
 
         char* ma[] = {const_cast<char*>("swl"),
-                      const_cast<char*>("--config"), const_cast<char*>("/tmp/swl_test_cfg6/test.conf"),
+                      const_cast<char*>("--config"), const_cast<char*>(cpath.c_str()),
                       const_cast<char*>("--log"), const_cast<char*>("/tmp/test.log")};
         Config c = parse_args(5, ma);
         assert(c.ssl_verify == false);
     }
-    fs::remove_all("/tmp/swl_test_cfg6");
+    fs::remove_all(cdir);
     std::cout << "PASS: test_config_ssl_verify_false_variants\n";
 }
 
 void test_cli_overrides_config() {
-    fs::create_directories("/tmp/swl_test_cfg7");
-    std::ofstream cfg("/tmp/swl_test_cfg7/test.conf");
+    std::string cdir = cfg_dir("override");
+    std::string cpath = cdir + "/test.conf";
+    fs::create_directories(cdir);
+    std::ofstream cfg(cpath);
     cfg << "window = 999\n"
         << "trailing = 888\n"
         << "cooldown = 777\n";
     cfg.close();
 
     char* ma[] = {const_cast<char*>("swl"),
-                  const_cast<char*>("--config"), const_cast<char*>("/tmp/swl_test_cfg7/test.conf"),
+                  const_cast<char*>("--config"), const_cast<char*>(cpath.c_str()),
                   const_cast<char*>("--log"), const_cast<char*>("/tmp/test.log"),
                   const_cast<char*>("--window"), const_cast<char*>("50"),
                   const_cast<char*>("--trailing"), const_cast<char*>("10")};
@@ -361,7 +381,7 @@ void test_cli_overrides_config() {
     assert(c.trailing_lines == 10);
     assert(c.cooldown_seconds == 777);
 
-    fs::remove_all("/tmp/swl_test_cfg7");
+    fs::remove_all(cdir);
     std::cout << "PASS: test_cli_overrides_config\n";
 }
 
@@ -555,8 +575,10 @@ void test_cooldown_flag() {
 }
 
 void test_bad_numeric_config_file() {
-    fs::create_directories("/tmp/swl_test_cfg_bad");
-    std::ofstream cfg("/tmp/swl_test_cfg_bad/test.conf");
+    std::string cdir = cfg_dir("bad_num");
+    std::string cpath = cdir + "/test.conf";
+    fs::create_directories(cdir);
+    std::ofstream cfg(cpath);
     cfg << "window = not_a_number\n"
         << "trailing = abc\n"
         << "retries = xyz\n"
@@ -566,7 +588,7 @@ void test_bad_numeric_config_file() {
     cfg.close();
 
     char* ma[] = {const_cast<char*>("swl"),
-                  const_cast<char*>("--config"), const_cast<char*>("/tmp/swl_test_cfg_bad/test.conf"),
+                  const_cast<char*>("--config"), const_cast<char*>(cpath.c_str()),
                   const_cast<char*>("--log"), const_cast<char*>("/tmp/test.log")};
     Config c = parse_args(5, ma);
     assert(c.window_size == 100);
@@ -576,7 +598,7 @@ void test_bad_numeric_config_file() {
     assert(c.retry_delay_ms == 1000);
     assert(c.max_line_length == 8192);
 
-    fs::remove_all("/tmp/swl_test_cfg_bad");
+    fs::remove_all(cdir);
     std::cout << "PASS: test_bad_numeric_config_file\n";
 }
 
@@ -592,38 +614,42 @@ void test_bad_numeric_cli_args() {
 }
 
 void test_window_zero_clamped() {
-    fs::create_directories("/tmp/swl_test_cfg_w0");
-    std::ofstream cfg("/tmp/swl_test_cfg_w0/test.conf");
+    std::string cdir = cfg_dir("window0");
+    std::string cpath = cdir + "/test.conf";
+    fs::create_directories(cdir);
+    std::ofstream cfg(cpath);
     cfg << "window = 0\n";
     cfg.close();
 
     char* ma[] = {const_cast<char*>("swl"),
-                  const_cast<char*>("--config"), const_cast<char*>("/tmp/swl_test_cfg_w0/test.conf"),
+                  const_cast<char*>("--config"), const_cast<char*>(cpath.c_str()),
                   const_cast<char*>("--log"), const_cast<char*>("/tmp/test.log")};
     Config c = parse_args(5, ma);
     assert(c.window_size == 1);
 
-    fs::remove_all("/tmp/swl_test_cfg_w0");
+    fs::remove_all(cdir);
     std::cout << "PASS: test_window_zero_clamped\n";
 }
 
 void test_negative_retries_clamped() {
-    fs::create_directories("/tmp/swl_test_cfg_neg");
-    std::ofstream cfg("/tmp/swl_test_cfg_neg/test.conf");
+    std::string cdir = cfg_dir("neg");
+    std::string cpath = cdir + "/test.conf";
+    fs::create_directories(cdir);
+    std::ofstream cfg(cpath);
     cfg << "retries = -5\n"
         << "cooldown = -10\n"
         << "retry_delay = -100\n";
     cfg.close();
 
     char* ma[] = {const_cast<char*>("swl"),
-                  const_cast<char*>("--config"), const_cast<char*>("/tmp/swl_test_cfg_neg/test.conf"),
+                  const_cast<char*>("--config"), const_cast<char*>(cpath.c_str()),
                   const_cast<char*>("--log"), const_cast<char*>("/tmp/test.log")};
     Config c = parse_args(5, ma);
     assert(c.max_retries == 0);
     assert(c.cooldown_seconds == 0);
     assert(c.retry_delay_ms == 0);
 
-    fs::remove_all("/tmp/swl_test_cfg_neg");
+    fs::remove_all(cdir);
     std::cout << "PASS: test_negative_retries_clamped\n";
 }
 

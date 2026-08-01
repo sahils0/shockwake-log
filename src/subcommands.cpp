@@ -204,11 +204,11 @@ int cmd_stop(const Config &config) {
 
   std::cout << "stopping swl (pid " << pid << ")...\n";
   kill(pid, SIGTERM);
-  sleep(1);
 
-  if (kill(pid, 0) == 0) {
+  if (!wait_for_process_exit(pid, 5000)) {
     std::cout << "process still alive, sending sigkill...\n";
     kill(pid, SIGKILL);
+    wait_for_process_exit(pid, 2000);
   }
 
   fs::remove(pid_file);
@@ -223,7 +223,12 @@ int cmd_clean(const Config &config) {
     if (pid > 0) {
       std::cout << "stopping monitor (pid " << pid << ")...\n";
       kill(pid, SIGTERM);
-      sleep(1);
+
+      if (!wait_for_process_exit(pid, 5000)) {
+        std::cout << "process still alive, sending sigkill...\n";
+        kill(pid, SIGKILL);
+        wait_for_process_exit(pid, 2000);
+      }
     }
     fs::remove(pid_file);
   }

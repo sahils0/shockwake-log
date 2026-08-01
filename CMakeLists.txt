@@ -68,6 +68,7 @@ add_library(swl_lib STATIC
     src/utilities.cpp
     src/subcommands.cpp
     src/status_dashboard.cpp
+    src/monitor.cpp
 )
 
 target_include_directories(swl_lib PUBLIC
@@ -94,6 +95,12 @@ option(BUILD_TESTS "Build unit tests" ON)
 
 if(BUILD_TESTS)
     enable_testing()
+
+    # Tests must exercise their assert() checks in every build type. Release
+    # builds define NDEBUG which compiles assert() out entirely, silently
+    # turning test suites into no-ops. This flag applies only to targets
+    # defined below (the swl binary above keeps normal Release behavior).
+    add_compile_options(-UNDEBUG)
 
     add_executable(test_ring_buffer
         tests/test_ring_buffer.cpp
@@ -133,6 +140,25 @@ if(BUILD_TESTS)
     )
     target_compile_definitions(test_main PRIVATE SWL_VERSION="${PROJECT_VERSION}")
     add_test(NAME Main COMMAND test_main)
+
+    add_executable(test_subcommands
+        tests/test_subcommands.cpp
+    )
+    target_include_directories(test_subcommands PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_compile_definitions(test_subcommands PRIVATE SWL_VERSION="${PROJECT_VERSION}")
+    target_link_libraries(test_subcommands PRIVATE swl_lib)
+    add_test(NAME Subcommands COMMAND test_subcommands)
+
+    add_executable(test_monitor
+        tests/test_monitor.cpp
+    )
+    target_include_directories(test_monitor PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+    )
+    target_link_libraries(test_monitor PRIVATE swl_lib)
+    add_test(NAME Monitor COMMAND test_monitor)
 endif()
 
 # ──────────────────────────────────────────────

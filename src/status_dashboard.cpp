@@ -28,19 +28,28 @@ static double get_process_uptime(pid_t pid) {
 
   std::string state;
   int ppid;
-  long uptime_secs;
   iss >> state >> ppid;
-  for (int i = 4; i < 22; i++)
+  for (int i = 5; i < 22; i++)
     iss >> dummy;
-  iss >> uptime_secs;
+  long starttime_ticks;
+  iss >> starttime_ticks;
 
-  long sys_uptime;
+  long sys_uptime = 0;
   std::ifstream up("/proc/uptime");
   up >> sys_uptime;
   up.close();
+  if (sys_uptime <= 0)
+    return 0;
 
-  long proc_start = sys_uptime - uptime_secs;
-  return static_cast<double>(proc_start);
+  long clk_tck = sysconf(_SC_CLK_TCK);
+  if (clk_tck <= 0)
+    return 0;
+
+  long elapsed = sys_uptime - starttime_ticks / clk_tck;
+  if (elapsed < 0)
+    elapsed = 0;
+
+  return static_cast<double>(time(nullptr)) - static_cast<double>(elapsed);
 }
 
 static void status_render(const Config &config, pid_t pid, double uptime,
@@ -57,8 +66,6 @@ static void status_render(const Config &config, pid_t pid, double uptime,
   localtime_r(&mod_time, &tm_buf);
   char timebuf[64];
   strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", &tm_buf);
-
-  std::string uptime_str = get_uptime(static_cast<time_t>(uptime));
 
   std::cout << "\n";
   std::cout << "=== swl status ===\n\n";
@@ -97,8 +104,13 @@ static void status_render(const Config &config, pid_t pid, double uptime,
 
   std::cout << "\n";
 
-  if (pid > 0)
-    std::cout << "  [uptime]   " << uptime_str << "\n";
+  if (pid > 0) {
+    if (uptime > 0)
+      std::cout << "  [uptime]   " << get_uptime(static_cast<time_t>(uptime))
+                << "\n";
+    else
+      std::cout << "  [uptime]   unavailable\n";
+  }
   std::cout << "  [incidents] " << incident_count << " file(s)\n";
 
   std::cout << "\n";

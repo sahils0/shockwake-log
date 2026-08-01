@@ -114,18 +114,29 @@ Auto-loaded from (first found wins):
 
 ## Building & Testing
 
+The `Makefile` wraps the common commands for developers building from source
+(it is not installed with swl — the install target ships only the binary,
+headers, and man page):
+
 ```bash
-# build
+make build       # release build + tests (matches CI)
+make test        # build + run full test suite
+make test-fast   # no-LTO build + ctest -j (fast iteration)
+make verify      # build + full test suite, run before committing
+```
+
+Manual (same as `make build`):
+```bash
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j$(nproc)
+```
 
-# run all test suites
+Tests (7 suites, 165 tests, no external framework — raw `assert()` + stdout):
+```bash
 cmake -B build -DBUILD_TESTS=ON
 cmake --build build -j$(nproc)
 ctest --test-dir build --output-on-failure
 ```
-
-6 test suites, 142 tests. No external test framework — raw `assert()` + stdout.
 
 ## License
 
