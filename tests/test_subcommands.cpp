@@ -425,7 +425,21 @@ static void test_cmd_status_live() {
   c.pid_file = pid_file;
   c.incident_dir = dir;
   write_pid_file(pid_file, std::to_string(getpid()));
+
+  std::ostringstream buf;
+  auto *old = std::cout.rdbuf(buf.rdbuf());
   CHECK(cmd_status(c) == 0);
+  std::cout.rdbuf(old);
+
+  std::string output = buf.str();
+  size_t pos = output.find("[uptime]");
+  CHECK(pos != std::string::npos);
+  std::string line = output.substr(pos);
+  size_t nl = line.find('\n');
+  if (nl != std::string::npos)
+    line = line.substr(0, nl);
+  CHECK(line.find('d') == std::string::npos);
+  CHECK(line.rfind("s") == line.size() - 1);
 
   fs::remove_all(dir);
   fs::remove(pid_file);
