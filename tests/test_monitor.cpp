@@ -5,10 +5,13 @@
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
+#include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
+#include <sys/file.h>
 #include <thread>
 #include <unistd.h>
 
@@ -220,6 +223,51 @@ static void test_max_line_length_truncation() {
   std::cout << "PASS: test_max_line_length_truncation\n";
 }
 
+static void test_second_instance_refused() {
+  std::string log = tbase("lock.log");
+  std::string pid = tbase("lock.pid");
+  std::string inc = tbase("lock_inc");
+  fs::remove(log);
+  fs::remove(pid);
+  fs::remove_all(inc);
+  {
+    std::ofstream out(log);
+    out << "seed\n";
+  }
+  {
+    std::ofstream out(pid);
+    out << "123456\n";
+  }
+
+  Config c;
+  c.log_path = log;
+  c.pid_file = pid;
+  c.incident_dir = inc;
+  c.triggers = {"ERROR"};
+
+  int lock_fd = open(pid.c_str(), O_RDWR, 0644);
+  CHECK(lock_fd >= 0);
+  CHECK(flock(lock_fd, LOCK_EX | LOCK_NB) == 0);
+
+  CHECK(cmd_monitor(c) == 1);
+
+  std::string content;
+  {
+    std::ifstream in(pid);
+    std::stringstream ss;
+    ss << in.rdbuf();
+    content = ss.str();
+  }
+  CHECK(content.find("123456") != std::string::npos);
+
+  flock(lock_fd, LOCK_UN);
+  close(lock_fd);
+  fs::remove(log);
+  fs::remove(pid);
+  fs::remove_all(inc);
+  std::cout << "PASS: test_second_instance_refused\n";
+}
+
 static void test_no_incident_without_trigger() {
   g_running = true;
   g_alert_count = 0;
@@ -278,8 +326,9 @@ int main() {
   test_drop_user_failure_cleans_pid();
   test_end_to_end();
   test_max_line_length_truncation();
+  test_second_instance_refused();
   test_no_incident_without_trigger();
 
-  std::cout << "\nAll 6 tests passed!\n";
+  std::cout << "\nAll 7 tests passed!\n";
   return 0;
 }

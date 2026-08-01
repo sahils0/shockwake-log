@@ -8,10 +8,12 @@
 #include <csignal>
 #include <cstring>
 #include <ctime>
+#include <fcntl.h>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <unordered_map>
@@ -46,13 +48,28 @@ int cmd_monitor(Config &config) {
   std::string pid_file =
       config.pid_file.empty() ? "./.swl.pid" : config.pid_file;
 
+  int lock_fd = open(pid_file.c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0644);
+  if (lock_fd < 0) {
+    std::cerr << "error: cannot open pid file: " << pid_file << "\n";
+    return 1;
+  }
+  if (flock(lock_fd, LOCK_EX | LOCK_NB) != 0) {
+    std::cerr << "error: another instance is already running on this log (pid "
+                 "lock held)\n";
+    close(lock_fd);
+    return 1;
+  }
+  std::string pid_str = std::to_string(getpid());
+  if (ftruncate(lock_fd, 0) != 0 ||
+      write(lock_fd, pid_str.data(), pid_str.size()) !=
+          static_cast<ssize_t>(pid_str.size())) {
+    std::cerr << "error: cannot write pid file: " << pid_file << "\n";
+    close(lock_fd);
+    return 1;
+  }
+
   std::signal(SIGTERM, signal_handler);
   std::signal(SIGINT, signal_handler);
-
-  {
-    std::ofstream pf(pid_file);
-    pf << getpid();
-  }
 
   auto cleanup_pid = [&pid_file]() { fs::remove(pid_file); };
 
